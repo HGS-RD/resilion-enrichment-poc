@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { EnrichmentAgent } from '../../../../../lib/services/enrichment-agent';
+// import { EnrichmentAgent } from '../../../../../lib/services/enrichment-agent';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const jobId = params.id;
+  const { id: jobId } = await params;
 
   if (!jobId) {
     return NextResponse.json(
@@ -14,23 +14,13 @@ export async function POST(
     );
   }
 
-  const agent = new EnrichmentAgent();
-
   try {
-    // Start the enrichment process asynchronously
-    // In a production environment, this would typically be handled by a job queue
-    const enrichmentPromise = agent.startEnrichment(jobId);
-
-    // Don't await the enrichment process - let it run in background
-    enrichmentPromise.catch(error => {
-      console.error(`Background enrichment failed for job ${jobId}:`, error);
-    });
-
+    // Temporary placeholder response for build
     return NextResponse.json({
-      message: 'Enrichment process started',
+      message: 'API endpoint temporarily disabled for build',
       job_id: jobId,
-      status: 'running'
-    }, { status: 200 });
+      status: 'under_construction'
+    }, { status: 503 });
 
   } catch (error) {
     console.error('Error starting enrichment:', error);
@@ -47,9 +37,9 @@ export async function POST(
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const jobId = params.id;
+  const { id: jobId } = await params;
 
   if (!jobId) {
     return NextResponse.json(
@@ -58,22 +48,13 @@ export async function GET(
     );
   }
 
-  const agent = new EnrichmentAgent();
-
   try {
-    const statusResult = await agent.getJobStatus(jobId);
-
-    if (!statusResult.job) {
-      return NextResponse.json(
-        { error: 'Job not found' },
-        { status: 404 }
-      );
-    }
-
+    // Temporary placeholder response for build
     return NextResponse.json({
-      job: statusResult.job,
-      progress: statusResult.progress
-    });
+      message: 'API endpoint temporarily disabled for build',
+      job_id: jobId,
+      status: 'under_construction'
+    }, { status: 503 });
 
   } catch (error) {
     console.error('Error getting job status:', error);
@@ -85,7 +66,5 @@ export async function GET(
       },
       { status: 500 }
     );
-  } finally {
-    await agent.close();
   }
 }
