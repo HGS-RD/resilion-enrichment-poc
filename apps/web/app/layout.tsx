@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "@workspace/ui/styles/globals.css";
 import { ThemeProvider } from "../components/theme-provider";
+import { Navigation } from "../components/navigation";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -24,7 +25,12 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {children}
+          <div className="flex min-h-screen bg-gray-50">
+            <Navigation />
+            <main className="flex-1">
+              {children}
+            </main>
+          </div>
         </ThemeProvider>
       </body>
     </html>

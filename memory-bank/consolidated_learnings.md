@@ -90,13 +90,26 @@
 
 ## Frontend Development Patterns
 
-### shadcn/ui Monorepo Setup
-**Pattern**: Structure shadcn/ui projects as monorepos with separate UI package and application workspaces.
+### Turborepo Monorepo Architecture
+**Pattern**: Use Turborepo for scalable monorepo structure with shared component libraries.
 **Structure**:
-- `packages/ui/` - Shared UI components and styles
+- `packages/ui/` - Shared UI components with TypeScript interfaces
 - `apps/web/` - Next.js application consuming UI package
-- Root-level configuration for shared tooling
-**Key Files**: `components.json`, `tailwind.config.js`, `tsconfig.json` in each workspace
+- Root-level `turbo.json` for build orchestration
+- Workspace dependencies managed via package.json workspaces
+**Benefits**: Code reuse, consistent design system, independent deployments
+
+### shadcn/ui Component System Implementation
+**Pattern**: Build professional UI component library with shadcn/ui patterns.
+**Key Dependencies**: `class-variance-authority`, `clsx`, `tailwind-merge`
+**Component Structure**: Use `cva()` for variant systems, proper TypeScript interfaces
+**Example**:
+```typescript
+const buttonVariants = cva("base-classes", {
+  variants: { variant: { default: "...", destructive: "..." } }
+})
+```
+**Application**: Enterprise-grade component libraries with consistent styling
 
 ### Tailwind CSS v4 Integration
 **Pattern**: Use `@tailwindcss/postcss` plugin instead of direct `tailwindcss` plugin for newer versions.
