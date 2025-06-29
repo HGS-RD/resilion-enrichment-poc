@@ -15,7 +15,7 @@ services:
     branch: main
     deploy_on_push: true
   run_command: cd apps/web && npm start
-  build_command: npm install && cd apps/web && npm install && npm run build
+  build_command: ./build.sh
   environment_slug: node-js
   instance_count: 1
   instance_size_slug: basic-xxs
