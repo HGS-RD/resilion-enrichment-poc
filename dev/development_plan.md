@@ -95,6 +95,24 @@ The development will proceed in the following milestones:
 *   **Task Management:** Update milestone status to `Complete` in project tracking.
 *   **Git:** Create feature branch, commit each setup step, push and create PR for milestone completion.
 
+**Testing & Validation (99% Coverage Target):**
+*   **Unit Tests (Vitest Setup):**
+    *   Configure Vitest with coverage reporting (Istanbul/c8)
+    *   Test database connection utilities and environment variable validation
+    *   Test schema validation functions and migration scripts
+    *   Coverage target: 100% for utility functions and configuration modules
+*   **Integration Tests:**
+    *   Database connection and migration execution tests
+    *   Environment variable loading and validation tests
+    *   Turborepo workspace configuration validation
+*   **CI/CD Pipeline Setup:**
+    *   Configure GitHub Actions with coverage reporting
+    *   Set up coverage threshold enforcement (99% minimum)
+    *   Integrate Playwright for future visual testing setup
+*   **Documentation Tests:**
+    *   Validate all environment variables are documented
+    *   Test setup instructions with clean environment simulation
+
 ### Milestone 2: Backend Core Logic (3-5 days)
 *   Implement the core `EnrichmentAgent` service.
 *   Develop the job initialization logic (API endpoint to accept a domain).
@@ -103,6 +121,28 @@ The development will proceed in the following milestones:
 *   **Task Management:** Update milestone status to `Complete` in project tracking.
 *   **Git:** Work in feature/backend-core branch, commit after each service implementation, create PR for review.
 
+**Testing & Validation (99% Coverage Target):**
+*   **Unit Tests (Vitest):**
+    *   `WebCrawlerService`: Test with various HTML structures, robots.txt compliance, error handling for unreachable domains
+    *   `TextChunkingService`: Test chunking algorithms with different text sizes, overlap calculations, edge cases (empty text, very short text)
+    *   `EmbeddingService`: Mock OpenAI API calls, test batch processing, error handling for API failures
+    *   `EnrichmentChain`: Test step execution order, context passing, error propagation, rollback mechanisms
+    *   Coverage target: 100% for all service methods and error paths
+*   **Integration Tests:**
+    *   API endpoint `/api/enrichment`: Test domain validation, job creation, idempotency, error responses
+    *   Database operations: Test job persistence, status updates, transaction rollbacks
+    *   Pinecone integration: Test vector upserts, metadata storage, index creation
+    *   Chain execution: Test full crawl → chunk → embed workflow with mock data
+*   **E2E Tests (Manual for now):**
+    *   Trigger enrichment for a controlled test domain (local HTML file)
+    *   Verify job status transitions: pending → running → completed
+    *   Confirm chunks are stored in Pinecone with correct metadata
+    *   Validate database records match expected job progression
+*   **Performance Tests:**
+    *   Test chunking performance with large text documents (>100KB)
+    *   Test concurrent job handling (5 simultaneous jobs)
+    *   Measure embedding generation throughput and API rate limiting
+
 ### Milestone 3: AI-Powered Extraction (3-4 days)
 *   Develop and version the prompt template for entity extraction.
 *   Integrate the AI SDK to call the LLM for extraction.
@@ -110,6 +150,29 @@ The development will proceed in the following milestones:
 *   Implement the confidence scoring and data persistence steps in the chain.
 *   **Task Management:** Update milestone status to `Complete` in project tracking.
 *   **Git:** Use feature/ai-extraction branch, commit prompt changes and AI integration separately, create PR.
+
+**Testing & Validation (99% Coverage Target):**
+*   **Unit Tests (Vitest):**
+    *   `PromptTemplate`: Test prompt generation with various input contexts, parameter substitution, versioning
+    *   `LLMService`: Mock AI SDK calls, test response parsing, error handling for API failures, rate limiting
+    *   `JSONSchemaValidator`: Test schema validation with valid/invalid LLM outputs, edge cases, malformed JSON
+    *   `ConfidenceScorer`: Test scoring algorithms with various fact types, confidence thresholds, statistical accuracy
+    *   `ExtractionStep`: Test full extraction workflow, error recovery, data transformation
+    *   Coverage target: 100% for all AI integration and validation logic
+*   **Integration Tests:**
+    *   End-to-end extraction chain: crawled text → chunks → embeddings → facts
+    *   Database persistence: Test fact storage, confidence scores, source attribution
+    *   Error handling: Test LLM failures, schema violations, confidence threshold filtering
+    *   Prompt versioning: Test backward compatibility and prompt evolution
+*   **Prompt Validation Tests:**
+    *   Golden dataset testing: Known inputs with expected fact extractions
+    *   Regression testing: Ensure prompt changes don't break existing functionality
+    *   Edge case testing: Empty results, malformed company data, ambiguous information
+    *   Performance testing: Measure extraction accuracy and processing time
+*   **AI Quality Assurance:**
+    *   Test with 10+ diverse company domains for extraction accuracy
+    *   Validate confidence scores correlate with manual fact verification
+    *   Test hallucination detection and filtering mechanisms
 
 ### Milestone 4: Frontend Implementation (4-6 days)
 *   Initialize shadcn/ui component library and configure project settings.
@@ -120,6 +183,39 @@ The development will proceed in the following milestones:
 *   **Task Management:** Update milestone status to `Complete` in project tracking.
 *   **Git:** Work in feature/frontend-ui branch, commit each component implementation, create PR for review.
 
+**Testing & Validation (99% Coverage Target):**
+*   **Unit Tests (Vitest + React Testing Library):**
+    *   Individual components: `JobTriggerPanel`, `StatusTable`, `FactViewer`, `WorkflowDiagram`
+    *   Component props and state management, event handlers, conditional rendering
+    *   Form validation, input sanitization, error state handling
+    *   Mermaid.js integration: diagram generation, status updates, interactive elements
+    *   Coverage target: 95% for React components (excluding trivial render-only components)
+*   **Integration Tests:**
+    *   Component interactions: form submission → status polling → results display
+    *   API integration: mock backend responses, error handling, loading states
+    *   Theme switching: dark/light mode consistency across all components
+    *   Responsive behavior: mobile, tablet, desktop layout validation
+*   **Visual Regression Tests (Playwright):**
+    *   **Baseline Screenshots:**
+        1. Dashboard in default state (empty, light theme)
+        2. Dashboard with active job showing Mermaid workflow diagram
+        3. Completed job with fact results table populated
+        4. Error states: network failure, job failure, no results found
+        5. Dark theme variations of all above states
+        6. Mobile responsive layouts for all key screens
+    *   **Cross-browser Testing:** Chrome, Firefox, Safari baseline validation
+    *   **Interactive Element Testing:** Button hover states, form focus states, tooltip displays
+    *   **Mermaid Diagram Testing:** Workflow visualization accuracy, step highlighting, progress indicators
+*   **Accessibility Tests:**
+    *   WCAG 2.1 AA compliance validation
+    *   Keyboard navigation testing for all interactive elements
+    *   Screen reader compatibility testing
+    *   Color contrast validation for all text/background combinations
+*   **Performance Tests:**
+    *   Page load times, bundle size analysis, Core Web Vitals measurement
+    *   Large dataset rendering: 100+ facts in results table
+    *   Real-time polling performance and memory usage
+
 ### Milestone 5: Integration, Testing & Deployment (3-4 days)
 *   End-to-end integration of frontend and backend.
 *   Implement error handling and retry logic.
@@ -127,6 +223,43 @@ The development will proceed in the following milestones:
 *   Deploy to DigitalOcean App Platform and conduct a full test with a pilot customer domain.
 *   **Task Management:** Update milestone status to `Complete` in project tracking.
 *   **Git:** Use feature/integration-testing branch, commit test implementations and deployment configs, create final PR.
+
+**Testing & Validation (99% Coverage Target):**
+*   **End-to-End Tests (Playwright):**
+    *   **Complete User Journeys:**
+        1. Navigate to app → Enter domain → Trigger enrichment → Monitor progress → View results
+        2. Error recovery: Handle network failures, API timeouts, invalid domains
+        3. Concurrent jobs: Multiple users triggering jobs simultaneously
+        4. Job history: View previous jobs, retry failed jobs, cancel running jobs
+    *   **Cross-system Validation:**
+        1. Frontend → API → Database → Pinecone → LLM integration
+        2. Real-time status updates and progress tracking
+        3. Data consistency across all storage systems
+*   **Load Testing:**
+    *   Concurrent user simulation: 10+ simultaneous enrichment jobs
+    *   Database connection pooling and transaction handling under load
+    *   API rate limiting and throttling validation
+    *   Memory usage and resource cleanup verification
+*   **Security Testing:**
+    *   Input validation and sanitization across all endpoints
+    *   SQL injection prevention, XSS protection
+    *   API authentication and authorization (if implemented)
+    *   Environment variable security and secret management
+*   **Deployment Validation:**
+    *   DigitalOcean App Platform deployment pipeline testing
+    *   Environment variable configuration validation
+    *   Database migration execution in production environment
+    *   Health checks and monitoring setup validation
+*   **Production Readiness:**
+    *   Error logging and monitoring setup
+    *   Performance monitoring and alerting
+    *   Backup and recovery procedures testing
+    *   Documentation completeness and accuracy validation
+*   **Final Coverage Validation:**
+    *   Comprehensive coverage report generation
+    *   99% coverage threshold enforcement
+    *   Coverage gap analysis and remediation
+    *   Test suite performance and reliability validation
 
 ---
 
@@ -151,11 +284,21 @@ The development will proceed in the following milestones:
 *   **Ticket-202:** [Backend] Add support for manual job retries. **Task Management:** Update ticket status to `Complete`. **Git:** Commit retry logic implementation, push changes.
 *   **Ticket-203:** [Testing] Write unit tests for the extraction and validation logic. **Task Management:** Update ticket status to `Complete`. **Git:** Commit test suites, push changes with CI updates.
 *   **Ticket-204:** [Docs] Document environment variables and setup instructions in `README.md`. **Task Management:** Update ticket status to `Complete`. **Git:** Commit documentation updates, push changes.
+*   **Ticket-205:** [Testing] Configure Vitest with 99% coverage enforcement and CI integration. **Task Management:** Update ticket status to `Complete`. **Git:** Commit test configuration and CI pipeline setup.
+*   **Ticket-206:** [Testing] Implement comprehensive unit tests for all service classes. **Task Management:** Update ticket status to `Complete`. **Git:** Commit service test suites with 100% coverage.
+*   **Ticket-207:** [Testing] Create integration tests for API endpoints and database operations. **Task Management:** Update ticket status to `Complete`. **Git:** Commit integration test suites.
+*   **Ticket-208:** [Testing] Set up Playwright for visual regression testing with baseline screenshots. **Task Management:** Update ticket status to `Complete`. **Git:** Commit Playwright configuration and initial visual tests.
 
 ### Priority 3: Nice-to-Have
 
 *   **Ticket-301:** [Frontend] Add color-coding to the fact viewer based on confidence scores. **Task Management:** Update ticket status to `Complete`. **Git:** Commit UI enhancements, push changes.
 *   **Ticket-302:** [Testing] Create a suite of prompt validation tests. **Task Management:** Update ticket status to `Complete`. **Git:** Commit prompt test suite, push final changes.
+*   **Ticket-303:** [Testing] Implement accessibility testing with WCAG 2.1 AA compliance validation. **Task Management:** Update ticket status to `Complete`. **Git:** Commit accessibility test suite.
+*   **Ticket-304:** [Testing] Create performance testing suite for load and stress testing. **Task Management:** Update ticket status to `Complete`. **Git:** Commit performance test configurations.
+*   **Ticket-305:** [Testing] Implement cross-browser visual testing for Chrome, Firefox, and Safari. **Task Management:** Update ticket status to `Complete`. **Git:** Commit cross-browser test configurations.
+*   **Ticket-306:** [Testing] Create security testing suite for input validation and XSS prevention. **Task Management:** Update ticket status to `Complete`. **Git:** Commit security test implementations.
+*   **Ticket-307:** [Testing] Implement E2E test suite covering complete user journeys. **Task Management:** Update ticket status to `Complete`. **Git:** Commit comprehensive E2E test scenarios.
+*   **Ticket-308:** [Testing] Create test data management system with fixtures and mocks. **Task Management:** Update ticket status to `Complete`. **Git:** Commit test data infrastructure.
 
 ---
 
@@ -168,12 +311,56 @@ The development will proceed in the following milestones:
 
 ---
 
-## 6. Testing and Validation Approach
+## 6. Testing and Validation Approach (99% Coverage Target)
 
-*   **Unit Testing:** Test individual functions, especially data transformation, schema validation, and confidence scoring logic.
-*   **Integration Testing:** Test the full enrichment chain with mock data and mock API calls to external services (LLM, Pinecone).
-*   **E2E Testing:** Conduct manual end-to-end tests by triggering jobs from the UI and verifying the results in the database and on the frontend.
-*   **Prompt Validation:** Create a test suite for prompts with known inputs and expected outputs to catch regressions in LLM performance or schema compliance.
+Our testing strategy aims for **99% code coverage** with comprehensive automated testing at all levels, including visual regression testing to ensure UI consistency.
+
+### Testing Stack
+*   **Unit & Integration Testing:** Vitest with Istanbul coverage reporting
+*   **Visual Regression Testing:** Playwright with screenshot comparison
+*   **E2E Testing:** Playwright for full user journey validation
+*   **Coverage Enforcement:** CI/CD pipeline configured to fail builds below 99% coverage threshold
+
+### Testing Pyramid Structure
+
+```mermaid
+graph TD
+    subgraph "Testing Pyramid (99% Coverage)"
+        A[Unit Tests - 70%<br/>Individual functions, components, services]
+        B[Integration Tests - 20%<br/>API endpoints, service interactions, database operations]
+        C[E2E Tests - 8%<br/>Complete user workflows, cross-system validation]
+        D[Visual Tests - 2%<br/>UI consistency, layout validation, diagram rendering]
+    end
+    
+    A --> B
+    B --> C
+    C --> D
+    
+    style A fill:#d5e8d4
+    style B fill:#fff2cc
+    style C fill:#ffe6cc
+    style D fill:#f8cecc
+```
+
+### Coverage Requirements by Component
+*   **Services (crawler, chunker, embeddings, agent):** 100% coverage of all methods and error paths
+*   **API Routes:** 100% coverage including error handling and validation
+*   **React Components:** 95% coverage (excluding trivial render-only components)
+*   **Utility Functions:** 100% coverage of all branches and edge cases
+*   **Database Operations:** 100% coverage including transaction rollbacks
+
+### Visual Regression Testing Strategy
+*   **Baseline Management:** Golden screenshots stored in version control
+*   **Automated Comparison:** Pixel-perfect diff detection with configurable thresholds
+*   **Cross-browser Testing:** Chrome, Firefox, and Safari baseline validation
+*   **Responsive Testing:** Mobile, tablet, and desktop viewport validation
+*   **Component Isolation:** Individual component visual testing in Storybook-style isolation
+
+### Test Data Management
+*   **Mock Data:** Comprehensive test fixtures for all data models
+*   **Test Databases:** Isolated test database instances with seed data
+*   **API Mocking:** Mock external services (OpenAI, Pinecone) for reliable testing
+*   **Snapshot Testing:** JSON schema validation and response structure testing
 
 ---
 
