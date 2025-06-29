@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "@workspace/ui/styles/globals.css";
 import { ThemeProvider } from "../components/theme-provider";
 import { Navigation } from "../components/navigation";
+import { CommandMenu } from "@workspace/ui";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -30,6 +31,7 @@ export default function RootLayout({
             <main className="flex-1">
               {children}
             </main>
+            <CommandMenu />
           </div>
         </ThemeProvider>
       </body>

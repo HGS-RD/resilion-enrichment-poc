@@ -17,7 +17,9 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue
+  SelectValue,
+  EnrichmentTrendChart,
+  TopErrorsBlock
 } from "@workspace/ui"
 import { 
   TrendingUp, 
@@ -145,58 +147,11 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Enrichment Jobs Trend Chart */}
         <div className="lg:col-span-2">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Enrichment Jobs Trend</CardTitle>
-              <Select defaultValue="30">
-                <SelectTrigger className="w-32">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="7">Last 7 days</SelectItem>
-                  <SelectItem value="30">Last 30 days</SelectItem>
-                  <SelectItem value="90">Last 90 days</SelectItem>
-                </SelectContent>
-              </Select>
-            </CardHeader>
-            <CardContent>
-              <div className="h-64 flex items-center justify-center bg-gray-50 dark:bg-gray-800 rounded-lg">
-                <div className="text-center">
-                  <TrendingUp className="h-12 w-12 text-gray-400 mx-auto mb-2" />
-                  <p className="text-gray-500">Chart placeholder</p>
-                  <p className="text-sm text-gray-400">Trend visualization will be implemented</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <EnrichmentTrendChart />
         </div>
 
         {/* Top Errors */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              Top Errors
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {mockTopErrors.map((error, index) => (
-                <div key={index} className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <div className="font-medium text-sm">{error.type}</div>
-                      <div className="text-right">
-                        <div className="font-bold text-lg">{error.count}</div>
-                        <div className="text-xs text-gray-500">instances</div>
-                      </div>
-                    </div>
-                    <div className="text-xs text-gray-500 mt-1">{error.description}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        <TopErrorsBlock />
       </div>
 
       {/* Recent Enrichment Activity */}
