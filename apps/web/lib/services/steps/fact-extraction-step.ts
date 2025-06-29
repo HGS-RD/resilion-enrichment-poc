@@ -1,24 +1,33 @@
 import { BaseEnrichmentStep } from '../enrichment-agent';
 import { EnrichmentContext, EnrichmentFact, ExtractionConfig } from '../../types/enrichment';
+import { FactRepository } from '../../repositories/fact-repository';
+import { promptBuilder } from '../prompt-templates';
+import { factSchemaValidator } from '../schema-validator';
+import { openai } from '@ai-sdk/openai';
+import { generateObject } from 'ai';
+import { z } from 'zod';
 
 /**
- * Fact Extraction Step
+ * Enhanced Fact Extraction Step
  * 
- * Final step in the enrichment chain. Uses LLM to extract structured
- * facts from the embedded text chunks.
+ * Final step in the enrichment chain. Uses AI SDK with structured output
+ * to extract facts from text chunks, validates against schema, and persists
+ * to database with confidence scoring.
  */
 
 export class FactExtractionStep extends BaseEnrichmentStep {
   private config: ExtractionConfig;
+  private factRepository: FactRepository;
 
   constructor(jobRepository: any) {
     super(jobRepository);
+    this.factRepository = new FactRepository();
     
-    // Default extraction configuration
+    // Enhanced extraction configuration
     this.config = {
       model: process.env.EXTRACTION_MODEL || 'gpt-4o-mini',
       temperature: parseFloat(process.env.EXTRACTION_TEMPERATURE || '0.1'),
-      max_tokens: parseInt(process.env.EXTRACTION_MAX_TOKENS || '2000'),
+      max_tokens: parseInt(process.env.EXTRACTION_MAX_TOKENS || '3000'),
       confidence_threshold: parseFloat(process.env.EXTRACTION_CONFIDENCE_THRESHOLD || '0.7')
     };
   }
@@ -83,23 +92,29 @@ export class FactExtractionStep extends BaseEnrichmentStep {
         fact.confidence_score >= this.config.confidence_threshold
       );
 
+      // Persist facts to database
+      const persistedFacts = await this.persistFacts(validFacts);
+
       // Update progress
-      await this.updateProgress(job.id, { facts_extracted: validFacts.length });
+      await this.updateProgress(job.id, { facts_extracted: persistedFacts.length });
 
       // Update step status to completed
       await this.updateStepStatus(job.id, 'extraction_status', 'completed');
 
+      console.log(`Successfully extracted and persisted ${persistedFacts.length} facts for job ${job.id}`);
+
       // Return updated context
       return {
         ...context,
-        extracted_facts: validFacts,
+        extracted_facts: persistedFacts,
         step_results: {
           ...context.step_results,
           extraction: {
-            total_facts: validFacts.length,
-            filtered_facts: extractedFacts.length - validFacts.length,
+            total_facts: persistedFacts.length,
+            filtered_facts: extractedFacts.length - persistedFacts.length,
             confidence_threshold: this.config.confidence_threshold,
             model_used: this.config.model,
+            validation_enabled: true,
             completed_at: new Date().toISOString()
           }
         }
@@ -128,25 +143,34 @@ export class FactExtractionStep extends BaseEnrichmentStep {
   }
 
   /**
-   * Extracts facts from a batch of text chunks
+   * Extracts facts from a batch of text chunks using AI SDK
    */
   private async extractFactsFromBatch(chunks: any[], job: any): Promise<EnrichmentFact[]> {
     const facts: EnrichmentFact[] = [];
 
-    // Combine chunks into a single context for the LLM
-    const combinedText = chunks.map(chunk => chunk.content).join('\n\n');
-    
-    // Create extraction prompt
-    const prompt = this.createExtractionPrompt(combinedText, job.domain);
-
     try {
-      // Call LLM for fact extraction
-      const extractionResult = await this.callLLM(prompt);
+      // Combine chunks into a single context for the LLM
+      const combinedText = chunks.map(chunk => chunk.content).join('\n\n');
       
-      // Parse and validate the extracted facts
-      const parsedFacts = this.parseExtractionResult(extractionResult, chunks, job.id);
+      // Build extraction prompt using template system
+      const { systemPrompt, userPrompt, schema } = promptBuilder.buildExtractionPrompt(
+        combinedText,
+        job.domain
+      );
+
+      console.log(`Extracting facts from ${chunks.length} chunks for domain: ${job.domain}`);
+
+      // Use AI SDK for structured extraction
+      const extractionResult = await this.callAISDK(systemPrompt, userPrompt, schema);
       
-      facts.push(...parsedFacts);
+      // Validate and process the extracted facts
+      const processedFacts = await this.processExtractionResult(
+        extractionResult,
+        chunks,
+        job.id
+      );
+      
+      facts.push(...processedFacts);
 
     } catch (error) {
       console.error('Failed to extract facts from batch:', error);
@@ -157,135 +181,78 @@ export class FactExtractionStep extends BaseEnrichmentStep {
   }
 
   /**
-   * Creates the extraction prompt for the LLM
+   * Calls AI SDK for structured fact extraction
    */
-  private createExtractionPrompt(text: string, domain: string): string {
-    return `You are an expert fact extraction system. Extract structured facts from the following text content from the domain "${domain}".
-
-INSTRUCTIONS:
-1. Extract factual information that would be valuable for business intelligence
-2. Focus on: company information, products/services, locations, contact details, key people, business metrics, technologies used
-3. Each fact should have a clear type and high confidence
-4. Return facts in JSON format with the specified schema
-5. Only include facts you are confident about (confidence >= 0.7)
-
-TEXT CONTENT:
-${text}
-
-REQUIRED JSON SCHEMA:
-{
-  "facts": [
-    {
-      "fact_type": "string (e.g., 'company_info', 'product', 'location', 'contact', 'person', 'technology', 'metric')",
-      "fact_data": {
-        "key": "value pairs with the actual fact information"
-      },
-      "confidence_score": "number between 0 and 1",
-      "source_text": "the specific text snippet that supports this fact"
-    }
-  ]
-}
-
-EXAMPLE OUTPUT:
-{
-  "facts": [
-    {
-      "fact_type": "company_info",
-      "fact_data": {
-        "name": "Acme Corp",
-        "industry": "Software Development",
-        "description": "Leading provider of cloud solutions"
-      },
-      "confidence_score": 0.95,
-      "source_text": "Acme Corp is a leading provider of cloud solutions in the software development industry"
-    }
-  ]
-}
-
-Extract facts now:`;
-  }
-
-  /**
-   * Calls the LLM for fact extraction
-   */
-  private async callLLM(prompt: string): Promise<string> {
+  private async callAISDK(systemPrompt: string, userPrompt: string, schema: any): Promise<any> {
     try {
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          model: this.config.model,
-          messages: [
-            {
-              role: 'system',
-              content: 'You are an expert fact extraction system. Always respond with valid JSON.'
-            },
-            {
-              role: 'user',
-              content: prompt
-            }
-          ],
-          temperature: this.config.temperature,
-          max_tokens: this.config.max_tokens,
-          response_format: { type: 'json_object' }
-        })
+      // Define the extraction schema for AI SDK
+      const extractionSchema = z.object({
+        facts: z.array(z.object({
+          fact_type: z.enum([
+            'company_info', 'product', 'service', 'location', 'contact',
+            'person', 'technology', 'metric', 'certification', 'partnership', 'capability'
+          ]),
+          fact_data: z.record(z.any()),
+          confidence_score: z.number().min(0.7).max(1.0),
+          source_text: z.string().min(1).max(200)
+        }))
       });
 
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(`OpenAI API error: ${response.status} - ${error}`);
-      }
+      const result = await generateObject({
+        model: openai(this.config.model),
+        system: systemPrompt,
+        prompt: userPrompt,
+        schema: extractionSchema,
+        temperature: this.config.temperature,
+        maxTokens: this.config.max_tokens,
+      });
 
-      const data = await response.json();
-      
-      if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-        throw new Error('Invalid response format from OpenAI API');
-      }
-
-      return data.choices[0].message.content;
+      return result.object;
 
     } catch (error) {
-      console.error('Failed to call LLM:', error);
-      throw new Error(`LLM call failed: ${error}`);
+      console.error('AI SDK extraction failed:', error);
+      throw new Error(`AI extraction failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
   /**
-   * Parses and validates the extraction result
+   * Processes and validates extraction results
    */
-  private parseExtractionResult(result: string, chunks: any[], jobId: string): EnrichmentFact[] {
+  private async processExtractionResult(
+    extractionResult: any,
+    chunks: any[],
+    jobId: string
+  ): Promise<EnrichmentFact[]> {
     const facts: EnrichmentFact[] = [];
 
     try {
-      const parsed = JSON.parse(result);
+      // Validate the extraction result against our schema
+      const validation = factSchemaValidator.validateExtractionResult(extractionResult);
       
-      if (!parsed.facts || !Array.isArray(parsed.facts)) {
-        console.warn('Invalid extraction result format');
-        return facts;
+      if (!validation.isValid) {
+        console.warn('Schema validation errors:', validation.errors);
       }
 
-      for (const factData of parsed.facts) {
-        // Validate required fields
-        if (!factData.fact_type || !factData.fact_data || !factData.confidence_score) {
-          console.warn('Skipping invalid fact:', factData);
+      // Process valid facts
+      for (const validFact of validation.validFacts) {
+        // Apply confidence threshold filter
+        if (validFact.confidence_score < this.config.confidence_threshold) {
+          console.log(`Filtering out low-confidence fact: ${validFact.confidence_score}`);
           continue;
         }
 
-        // Find the source chunk (simplified - could be improved)
-        const sourceChunk = chunks[0]; // For now, use first chunk as source
+        // Find the best matching source chunk
+        const sourceChunk = this.findBestSourceChunk(validFact.source_text, chunks);
 
         const fact: EnrichmentFact = {
           id: this.generateFactId(),
           job_id: jobId,
-          fact_type: factData.fact_type,
-          fact_data: factData.fact_data,
-          confidence_score: Math.min(Math.max(factData.confidence_score, 0), 1), // Clamp to 0-1
+          fact_type: validFact.fact_type,
+          fact_data: validFact.fact_data,
+          confidence_score: validFact.confidence_score,
           source_url: sourceChunk?.metadata?.source_url,
-          source_text: factData.source_text || sourceChunk?.content?.substring(0, 500),
-          embedding_id: undefined, // Could link to specific embedding
+          source_text: validFact.source_text,
+          embedding_id: sourceChunk?.id,
           created_at: new Date().toISOString(),
           validated: false
         };
@@ -293,11 +260,94 @@ Extract facts now:`;
         facts.push(fact);
       }
 
+      // Log validation results
+      console.log(`Extraction validation: ${validation.validFacts.length} valid, ${validation.invalidFacts.length} invalid facts`);
+
     } catch (error) {
-      console.error('Failed to parse extraction result:', error);
+      console.error('Failed to process extraction result:', error);
     }
 
     return facts;
+  }
+
+  /**
+   * Finds the best matching source chunk for a fact
+   */
+  private findBestSourceChunk(sourceText: string, chunks: any[]): any {
+    if (!sourceText || chunks.length === 0) {
+      return chunks[0];
+    }
+
+    // Simple text matching - could be improved with fuzzy matching
+    let bestMatch = chunks[0];
+    let bestScore = 0;
+
+    for (const chunk of chunks) {
+      if (chunk.content && chunk.content.includes(sourceText.substring(0, 50))) {
+        const score = this.calculateTextSimilarity(sourceText, chunk.content);
+        if (score > bestScore) {
+          bestScore = score;
+          bestMatch = chunk;
+        }
+      }
+    }
+
+    return bestMatch;
+  }
+
+  /**
+   * Calculates simple text similarity score
+   */
+  private calculateTextSimilarity(text1: string, text2: string): number {
+    const words1 = text1.toLowerCase().split(/\s+/);
+    const words2 = text2.toLowerCase().split(/\s+/);
+    
+    const commonWords = words1.filter(word => words2.includes(word));
+    return commonWords.length / Math.max(words1.length, words2.length);
+  }
+
+  /**
+   * Persists facts to database with validation
+   */
+  private async persistFacts(facts: EnrichmentFact[]): Promise<EnrichmentFact[]> {
+    if (facts.length === 0) {
+      return [];
+    }
+
+    try {
+      // Prepare facts for persistence (remove id and created_at as they'll be generated)
+      const factsForPersistence = facts.map(fact => ({
+        job_id: fact.job_id,
+        fact_type: fact.fact_type,
+        fact_data: fact.fact_data,
+        confidence_score: fact.confidence_score,
+        source_url: fact.source_url,
+        source_text: fact.source_text,
+        embedding_id: fact.embedding_id,
+        validated: fact.validated,
+        validation_notes: fact.validation_notes
+      }));
+
+      // Validate facts for persistence
+      const validation = factSchemaValidator.validateForPersistence(factsForPersistence);
+      
+      if (validation.errors.length > 0) {
+        console.warn('Fact persistence validation errors:', validation.errors);
+      }
+
+      // Persist valid facts to database (cast to proper type after validation)
+      const persistedFacts = await this.factRepository.createBatch(
+        validation.validFacts as Omit<EnrichmentFact, 'id' | 'created_at'>[]
+      );
+      
+      console.log(`Persisted ${persistedFacts.length} facts to database`);
+      
+      return persistedFacts;
+
+    } catch (error) {
+      console.error('Failed to persist facts:', error);
+      throw new Error(`Fact persistence failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   }
 
   /**
@@ -315,46 +365,36 @@ Extract facts now:`;
   }
 
   /**
-   * Validates extracted facts for quality
+   * Enhanced fact validation with schema validation
    */
   private validateFact(fact: EnrichmentFact): boolean {
-    // Check confidence threshold
-    if (fact.confidence_score < this.config.confidence_threshold) {
-      return false;
-    }
+    // Use schema validator for comprehensive validation
+    const validation = factSchemaValidator.validateSingleFact({
+      fact_type: fact.fact_type,
+      fact_data: fact.fact_data,
+      confidence_score: fact.confidence_score,
+      source_text: fact.source_text || ''
+    });
 
-    // Check for required data
-    if (!fact.fact_data || Object.keys(fact.fact_data).length === 0) {
-      return false;
-    }
-
-    // Check fact type is valid
-    const validFactTypes = [
-      'company_info', 'product', 'service', 'location', 'contact', 
-      'person', 'technology', 'metric', 'event', 'partnership'
-    ];
-    
-    if (!validFactTypes.includes(fact.fact_type)) {
-      return false;
-    }
-
-    return true;
+    return validation.isValid;
   }
 
   /**
-   * Deduplicates similar facts
+   * Deduplicates similar facts using improved hashing
    */
   private deduplicateFacts(facts: EnrichmentFact[]): EnrichmentFact[] {
     const deduplicated: EnrichmentFact[] = [];
     const seen = new Set<string>();
 
     for (const fact of facts) {
-      // Create a simple hash for deduplication
+      // Create a more sophisticated hash for deduplication
       const hash = this.createFactHash(fact);
       
       if (!seen.has(hash)) {
         seen.add(hash);
         deduplicated.push(fact);
+      } else {
+        console.log(`Deduplicated similar fact: ${fact.fact_type}`);
       }
     }
 
@@ -362,10 +402,29 @@ Extract facts now:`;
   }
 
   /**
-   * Creates a hash for fact deduplication
+   * Creates an improved hash for fact deduplication
    */
   private createFactHash(fact: EnrichmentFact): string {
-    const key = `${fact.fact_type}-${JSON.stringify(fact.fact_data)}`;
+    // Create hash based on fact type and key data fields
+    const keyData = { ...fact.fact_data };
+    
+    // Normalize data for better deduplication
+    if (keyData.name) {
+      keyData.name = keyData.name.toLowerCase().trim();
+    }
+    
+    const key = `${fact.fact_type}-${JSON.stringify(keyData, Object.keys(keyData).sort())}`;
     return Buffer.from(key).toString('base64');
+  }
+
+  /**
+   * Cleanup method to close database connections
+   */
+  async cleanup(): Promise<void> {
+    try {
+      await this.factRepository.close();
+    } catch (error) {
+      console.error('Error during cleanup:', error);
+    }
   }
 }
