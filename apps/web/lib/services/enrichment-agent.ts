@@ -1,303 +1,238 @@
-import { Pool } from 'pg';
 import { 
   EnrichmentJob, 
-  EnrichmentContext,
-  JobStatus 
+  EnrichmentContext, 
+  EnrichmentChain, 
+  EnrichmentStep,
+  JobRepository 
 } from '../types/enrichment';
-import { 
-  EnrichmentChainImpl, 
-  CrawlingStep, 
-  ChunkingStep, 
-  EmbeddingStep 
-} from './enrichment-chain';
+import { WebCrawlerStep } from './steps/web-crawler-step';
+import { TextChunkingStep } from './steps/text-chunking-step';
+import { EmbeddingStep } from './steps/embedding-step';
+import { FactExtractionStep } from './steps/fact-extraction-step';
 
 /**
- * Main EnrichmentAgent service that orchestrates the entire enrichment process
+ * EnrichmentAgent - Core orchestrator for the enrichment process
+ * 
+ * Implements the chain-of-responsibility pattern to process enrichment jobs
+ * through a series of steps: crawling -> chunking -> embedding -> extraction
  */
+
 export class EnrichmentAgent {
-  private pool: Pool;
-  private chain: EnrichmentChainImpl;
+  private jobRepository: JobRepository;
+  private chain: EnrichmentChain;
 
-  constructor() {
-    this.pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-    });
-
-    // Initialize the enrichment chain with all steps
-    this.chain = new EnrichmentChainImpl()
-      .addStep(new CrawlingStep())
-      .addStep(new ChunkingStep())
-      .addStep(new EmbeddingStep());
+  constructor(jobRepository: JobRepository) {
+    this.jobRepository = jobRepository;
+    this.chain = this.buildProcessingChain();
   }
 
   /**
-   * Start enrichment process for a job
+   * Processes an enrichment job through the complete workflow
    */
-  async startEnrichment(jobId: string): Promise<EnrichmentContext> {
+  async processJob(jobId: string): Promise<{
+    success: boolean;
+    job?: EnrichmentJob;
+    error?: string;
+  }> {
     try {
-      // Fetch the job from database
-      const job = await this.getJobById(jobId);
+      // Get the job
+      const job = await this.jobRepository.findById(jobId);
       if (!job) {
-        throw new Error(`Job not found: ${jobId}`);
+        throw new Error(`Job ${jobId} not found`);
       }
 
-      // Check if job is in correct state
-      if (job.status !== 'pending') {
-        throw new Error(`Job ${jobId} is not in pending state. Current status: ${job.status}`);
-      }
+      // Update job status to running
+      await this.jobRepository.updateStatus(jobId, 'running');
 
-      console.log(`Starting enrichment for job ${jobId} (domain: ${job.domain})`);
-
-      // Create initial context
+      // Create enrichment context
       const context: EnrichmentContext = {
-        job: job,
+        job: { ...job, status: 'running' },
+        crawled_pages: [],
+        text_chunks: [],
+        embeddings: [],
+        extracted_facts: [],
         step_results: {}
       };
 
       // Execute the enrichment chain
-      const result = await this.chain.execute(context);
+      const finalContext = await this.chain.execute(context);
 
-      console.log(`Enrichment completed for job ${jobId}`);
-      return result;
+      // Check for errors
+      if (finalContext.error) {
+        await this.jobRepository.logError(jobId, finalContext.error.message);
+        return {
+          success: false,
+          error: finalContext.error.message
+        };
+      }
+
+      // Update job status to completed
+      await this.jobRepository.updateStatus(jobId, 'completed');
+
+      // Get final job state
+      const completedJob = await this.jobRepository.findById(jobId);
+
+      return {
+        success: true,
+        job: completedJob!
+      };
 
     } catch (error) {
-      console.error(`Error in enrichment process for job ${jobId}:`, error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       
-      // Update job status to failed
-      await this.updateJobStatus(jobId, 'failed');
-      await this.logJobError(jobId, `Enrichment failed: ${error}`);
-      
-      throw error;
-    }
-  }
+      try {
+        await this.jobRepository.logError(jobId, errorMessage);
+      } catch (logError) {
+        console.error('Failed to log error:', logError);
+      }
 
-  /**
-   * Get job by ID from database
-   */
-  private async getJobById(jobId: string): Promise<EnrichmentJob | null> {
-    const query = `
-      SELECT 
-        id, domain, status, created_at, updated_at, started_at, completed_at,
-        error_message, retry_count, metadata,
-        crawling_status, chunking_status, embedding_status, extraction_status,
-        pages_crawled, chunks_created, embeddings_generated, facts_extracted
-      FROM enrichment_jobs 
-      WHERE id = $1
-    `;
-    
-    const result = await this.pool.query(query, [jobId]);
-    
-    if (result.rows.length === 0) {
-      return null;
-    }
-
-    return result.rows[0] as EnrichmentJob;
-  }
-
-  /**
-   * Update job status
-   */
-  private async updateJobStatus(jobId: string, status: JobStatus): Promise<void> {
-    const query = `
-      UPDATE enrichment_jobs 
-      SET status = $1, updated_at = CURRENT_TIMESTAMP
-      WHERE id = $2
-    `;
-    await this.pool.query(query, [status, jobId]);
-  }
-
-  /**
-   * Log job error
-   */
-  private async logJobError(jobId: string, errorMessage: string): Promise<void> {
-    const errorQuery = `
-      UPDATE enrichment_jobs 
-      SET error_message = $1, updated_at = CURRENT_TIMESTAMP
-      WHERE id = $2
-    `;
-    await this.pool.query(errorQuery, [errorMessage, jobId]);
-
-    const logQuery = `
-      INSERT INTO job_logs (job_id, level, message, details)
-      VALUES ($1, 'error', $2, $3)
-    `;
-    await this.pool.query(logQuery, [jobId, 'Enrichment process failed', JSON.stringify({ error: errorMessage })]);
-  }
-
-  /**
-   * Get job status and progress
-   */
-  async getJobStatus(jobId: string): Promise<{
-    job: EnrichmentJob | null;
-    progress: {
-      current_step: string;
-      completion_percentage: number;
-      steps_completed: number;
-      total_steps: number;
-    };
-  }> {
-    const job = await this.getJobById(jobId);
-    
-    if (!job) {
       return {
-        job: null,
-        progress: {
-          current_step: 'unknown',
-          completion_percentage: 0,
-          steps_completed: 0,
-          total_steps: 4,
-        }
+        success: false,
+        error: errorMessage
       };
     }
+  }
 
-    // Calculate progress based on step statuses
-    const steps = [
-      { name: 'crawling', status: job.crawling_status },
-      { name: 'chunking', status: job.chunking_status },
-      { name: 'embedding', status: job.embedding_status },
-      { name: 'extraction', status: job.extraction_status },
-    ];
+  /**
+   * Builds the processing chain with all enrichment steps
+   */
+  private buildProcessingChain(): EnrichmentChain {
+    const chain = new ProcessingChain();
 
-    const completedSteps = steps.filter(step => step.status === 'completed').length;
-    const runningStep = steps.find(step => step.status === 'running');
-    const currentStep = runningStep ? runningStep.name : 
-                       job.status === 'completed' ? 'completed' :
-                       job.status === 'failed' ? 'failed' :
-                       steps.find(step => step.status === 'pending')?.name || 'pending';
+    // Add steps in order
+    chain
+      .addStep(new WebCrawlerStep(this.jobRepository))
+      .addStep(new TextChunkingStep(this.jobRepository))
+      .addStep(new EmbeddingStep(this.jobRepository))
+      .addStep(new FactExtractionStep(this.jobRepository));
 
-    const completionPercentage = Math.round((completedSteps / steps.length) * 100);
+    return chain;
+  }
 
-    return {
-      job,
-      progress: {
-        current_step: currentStep,
-        completion_percentage: completionPercentage,
-        steps_completed: completedSteps,
-        total_steps: steps.length,
+  /**
+   * Gets the current status of a job
+   */
+  async getJobStatus(jobId: string): Promise<EnrichmentJob | null> {
+    return await this.jobRepository.findById(jobId);
+  }
+
+  /**
+   * Retries a failed job
+   */
+  async retryJob(jobId: string): Promise<{
+    success: boolean;
+    job?: EnrichmentJob;
+    error?: string;
+  }> {
+    try {
+      const job = await this.jobRepository.findById(jobId);
+      if (!job) {
+        throw new Error(`Job ${jobId} not found`);
       }
-    };
+
+      if (job.status !== 'failed') {
+        throw new Error(`Job ${jobId} is not in failed state`);
+      }
+
+      // Increment retry count
+      await this.jobRepository.incrementRetryCount(jobId);
+
+      // Reset job status to pending
+      await this.jobRepository.updateStatus(jobId, 'pending');
+
+      // Process the job again
+      return await this.processJob(jobId);
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      return {
+        success: false,
+        error: errorMessage
+      };
+    }
+  }
+}
+
+/**
+ * Implementation of the EnrichmentChain interface
+ */
+class ProcessingChain implements EnrichmentChain {
+  private steps: EnrichmentStep[] = [];
+
+  addStep(step: EnrichmentStep): EnrichmentChain {
+    this.steps.push(step);
+    return this;
   }
 
-  /**
-   * Retry a failed job
-   */
-  async retryJob(jobId: string): Promise<EnrichmentContext> {
-    const job = await this.getJobById(jobId);
-    
-    if (!job) {
-      throw new Error(`Job not found: ${jobId}`);
+  async execute(context: EnrichmentContext): Promise<EnrichmentContext> {
+    let currentContext = { ...context };
+
+    for (const step of this.steps) {
+      try {
+        // Check if step can handle the current context
+        if (!step.canHandle(currentContext)) {
+          console.log(`Skipping step ${step.name} - cannot handle current context`);
+          continue;
+        }
+
+        console.log(`Executing step: ${step.name}`);
+        
+        // Execute the step
+        currentContext = await step.execute(currentContext);
+
+        // Check for errors after step execution
+        if (currentContext.error) {
+          console.error(`Step ${step.name} failed:`, currentContext.error.message);
+          break;
+        }
+
+        console.log(`Step ${step.name} completed successfully`);
+
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        console.error(`Step ${step.name} threw error:`, errorMessage);
+        
+        currentContext.error = error instanceof Error ? error : new Error(errorMessage);
+        break;
+      }
     }
 
-    if (job.status !== 'failed') {
-      throw new Error(`Job ${jobId} is not in failed state. Current status: ${job.status}`);
-    }
+    return currentContext;
+  }
+}
 
-    console.log(`Retrying job ${jobId}`);
+/**
+ * Base class for enrichment steps
+ */
+export abstract class BaseEnrichmentStep implements EnrichmentStep {
+  protected jobRepository: JobRepository;
+  
+  constructor(jobRepository: JobRepository) {
+    this.jobRepository = jobRepository;
+  }
 
-    // Reset job status and step statuses
-    await this.resetJobForRetry(jobId);
+  abstract get name(): string;
+  abstract execute(context: EnrichmentContext): Promise<EnrichmentContext>;
+  abstract canHandle(context: EnrichmentContext): boolean;
 
-    // Increment retry count
-    await this.incrementRetryCount(jobId);
-
-    // Start enrichment process
-    return await this.startEnrichment(jobId);
+  /**
+   * Helper method to update job progress
+   */
+  protected async updateProgress(
+    jobId: string, 
+    progress: Partial<Pick<EnrichmentJob, 'pages_crawled' | 'chunks_created' | 'embeddings_generated' | 'facts_extracted'>>
+  ): Promise<void> {
+    await this.jobRepository.updateProgress(jobId, progress);
   }
 
   /**
-   * Reset job for retry
+   * Helper method to update step status
    */
-  private async resetJobForRetry(jobId: string): Promise<void> {
-    const query = `
-      UPDATE enrichment_jobs 
-      SET 
-        status = 'pending',
-        error_message = NULL,
-        started_at = NULL,
-        completed_at = NULL,
-        crawling_status = 'pending',
-        chunking_status = 'pending',
-        embedding_status = 'pending',
-        extraction_status = 'pending',
-        pages_crawled = 0,
-        chunks_created = 0,
-        embeddings_generated = 0,
-        facts_extracted = 0,
-        updated_at = CURRENT_TIMESTAMP
-      WHERE id = $1
-    `;
-    await this.pool.query(query, [jobId]);
-  }
-
-  /**
-   * Increment retry count
-   */
-  private async incrementRetryCount(jobId: string): Promise<void> {
-    const query = `
-      UPDATE enrichment_jobs 
-      SET retry_count = retry_count + 1, updated_at = CURRENT_TIMESTAMP
-      WHERE id = $1
-    `;
-    await this.pool.query(query, [jobId]);
-  }
-
-  /**
-   * Cancel a running job
-   */
-  async cancelJob(jobId: string): Promise<void> {
-    const job = await this.getJobById(jobId);
-    
-    if (!job) {
-      throw new Error(`Job not found: ${jobId}`);
-    }
-
-    if (!['pending', 'running'].includes(job.status)) {
-      throw new Error(`Cannot cancel job ${jobId}. Current status: ${job.status}`);
-    }
-
-    console.log(`Cancelling job ${jobId}`);
-
-    const query = `
-      UPDATE enrichment_jobs 
-      SET status = 'cancelled', updated_at = CURRENT_TIMESTAMP
-      WHERE id = $1
-    `;
-    await this.pool.query(query, [jobId]);
-
-    // Log cancellation
-    const logQuery = `
-      INSERT INTO job_logs (job_id, level, message)
-      VALUES ($1, 'info', 'Job cancelled by user')
-    `;
-    await this.pool.query(logQuery, [jobId]);
-  }
-
-  /**
-   * Get job logs
-   */
-  async getJobLogs(jobId: string, limit: number = 50): Promise<Array<{
-    id: string;
-    level: string;
-    message: string;
-    details: any;
-    created_at: string;
-  }>> {
-    const query = `
-      SELECT id, level, message, details, created_at
-      FROM job_logs 
-      WHERE job_id = $1
-      ORDER BY created_at DESC
-      LIMIT $2
-    `;
-    
-    const result = await this.pool.query(query, [jobId, limit]);
-    return result.rows;
-  }
-
-  /**
-   * Clean up resources
-   */
-  async close(): Promise<void> {
-    await this.pool.end();
+  protected async updateStepStatus(
+    jobId: string,
+    step: keyof Pick<EnrichmentJob, 'crawling_status' | 'chunking_status' | 'embedding_status' | 'extraction_status'>,
+    status: 'pending' | 'running' | 'completed' | 'failed'
+  ): Promise<void> {
+    await this.jobRepository.updateStepStatus(jobId, step, status);
   }
 }

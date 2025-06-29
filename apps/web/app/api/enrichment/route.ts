@@ -1,217 +1,130 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Pool } from 'pg';
+import { z } from 'zod';
+import { JobRepository } from '@/lib/repositories/job-repository';
+import { EnrichmentAgent } from '@/lib/services/enrichment-agent';
+import { validateDomain } from '@/lib/utils/domain-validator';
 
-// Database connection
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+/**
+ * API Route: POST /api/enrichment
+ * 
+ * Accepts a domain name and creates a new enrichment job.
+ * Returns the job ID and initial status.
+ */
+
+// Request validation schema
+const CreateJobSchema = z.object({
+  domain: z.string()
+    .min(1, 'Domain is required')
+    .max(255, 'Domain too long')
+    .refine(
+      (domain) => validateDomain(domain),
+      'Invalid domain format'
+    ),
+  metadata: z.record(z.any()).optional().default({})
 });
 
 export async function POST(request: NextRequest) {
   try {
-    const { domain } = await request.json();
+    // Parse and validate request body
+    const body = await request.json();
+    const { domain, metadata } = CreateJobSchema.parse(body);
 
-    // Validate domain input
-    if (!domain || typeof domain !== 'string') {
-      return NextResponse.json(
-        { error: 'Domain is required and must be a string' },
-        { status: 400 }
-      );
-    }
+    // Initialize repositories and services
+    const jobRepository = new JobRepository();
+    const enrichmentAgent = new EnrichmentAgent(jobRepository);
 
-    // Basic domain validation
-    const domainRegex = /^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9](?:\.[a-zA-Z]{2,})+$/;
-    if (!domainRegex.test(domain)) {
-      return NextResponse.json(
-        { error: 'Invalid domain format' },
-        { status: 400 }
-      );
-    }
+    // Check if job already exists for this domain
+    const existingJobs = await jobRepository.findByDomain(domain);
+    const activeJob = existingJobs.find(job => 
+      job.status === 'pending' || job.status === 'running'
+    );
 
-    // Check for existing active job (idempotency)
-    const existingJobQuery = `
-      SELECT id, status, created_at 
-      FROM enrichment_jobs 
-      WHERE domain = $1 
-        AND status IN ('pending', 'running') 
-        AND created_at > NOW() - INTERVAL '1 hour'
-      ORDER BY created_at DESC 
-      LIMIT 1
-    `;
-    
-    const existingJobResult = await pool.query(existingJobQuery, [domain]);
-    
-    if (existingJobResult.rows.length > 0) {
-      const existingJob = existingJobResult.rows[0];
+    if (activeJob) {
       return NextResponse.json({
+        id: activeJob.id,
+        domain: activeJob.domain,
+        status: activeJob.status,
         message: 'Job already exists for this domain',
-        job: {
-          id: existingJob.id,
-          domain,
-          status: existingJob.status,
-          created_at: existingJob.created_at
-        }
+        created_at: activeJob.created_at
       }, { status: 200 });
     }
 
     // Create new enrichment job
-    const insertJobQuery = `
-      INSERT INTO enrichment_jobs (domain, status, metadata)
-      VALUES ($1, 'pending', $2)
-      RETURNING id, domain, status, created_at, crawling_status, chunking_status, embedding_status, extraction_status
-    `;
+    const job = await jobRepository.create(domain, metadata);
 
-    const metadata = {
-      source: 'api',
-      user_agent: request.headers.get('user-agent') || 'unknown',
-      ip_address: request.headers.get('x-forwarded-for') || 'unknown'
-    };
-
-    const result = await pool.query(insertJobQuery, [domain, JSON.stringify(metadata)]);
-    const newJob = result.rows[0];
-
-    // Log job creation
-    const logQuery = `
-      INSERT INTO job_logs (job_id, level, message, details)
-      VALUES ($1, 'info', 'Enrichment job created', $2)
-    `;
-    
-    await pool.query(logQuery, [
-      newJob.id, 
-      JSON.stringify({ domain, created_via: 'api' })
-    ]);
+    // Start enrichment process asynchronously
+    // Note: In production, this would be handled by a queue system
+    enrichmentAgent.processJob(job.id).catch(error => {
+      console.error(`Failed to process job ${job.id}:`, error);
+      jobRepository.logError(job.id, error.message, 'initialization');
+    });
 
     return NextResponse.json({
-      message: 'Enrichment job created successfully',
-      job: {
-        id: newJob.id,
-        domain: newJob.domain,
-        status: newJob.status,
-        created_at: newJob.created_at,
-        workflow_status: {
-          crawling: newJob.crawling_status,
-          chunking: newJob.chunking_status,
-          embedding: newJob.embedding_status,
-          extraction: newJob.extraction_status
-        }
-      }
+      id: job.id,
+      domain: job.domain,
+      status: job.status,
+      created_at: job.created_at,
+      message: 'Enrichment job created successfully'
     }, { status: 201 });
 
   } catch (error) {
     console.error('Error creating enrichment job:', error);
-    
-    return NextResponse.json(
-      { 
-        error: 'Internal server error',
-        message: 'Failed to create enrichment job'
-      },
-      { status: 500 }
-    );
+
+    // Handle validation errors
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({
+        error: 'Validation failed',
+        details: error.errors.map(err => ({
+          field: err.path.join('.'),
+          message: err.message
+        }))
+      }, { status: 400 });
+    }
+
+    // Handle other errors
+    return NextResponse.json({
+      error: 'Internal server error',
+      message: 'Failed to create enrichment job'
+    }, { status: 500 });
   }
 }
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const jobId = searchParams.get('id');
     const domain = searchParams.get('domain');
+    const jobId = searchParams.get('id');
+
+    const jobRepository = new JobRepository();
 
     if (jobId) {
       // Get specific job by ID
-      const jobQuery = `
-        SELECT 
-          id, domain, status, created_at, updated_at, started_at, completed_at,
-          error_message, retry_count, metadata,
-          crawling_status, chunking_status, embedding_status, extraction_status,
-          pages_crawled, chunks_created, embeddings_generated, facts_extracted
-        FROM enrichment_jobs 
-        WHERE id = $1
-      `;
-      
-      const result = await pool.query(jobQuery, [jobId]);
-      
-      if (result.rows.length === 0) {
-        return NextResponse.json(
-          { error: 'Job not found' },
-          { status: 404 }
-        );
+      const job = await jobRepository.findById(jobId);
+      if (!job) {
+        return NextResponse.json({
+          error: 'Job not found'
+        }, { status: 404 });
       }
-
-      const job = result.rows[0];
-      return NextResponse.json({
-        job: {
-          ...job,
-          workflow_status: {
-            crawling: job.crawling_status,
-            chunking: job.chunking_status,
-            embedding: job.embedding_status,
-            extraction: job.extraction_status
-          }
-        }
-      });
-
-    } else if (domain) {
-      // Get jobs for specific domain
-      const jobsQuery = `
-        SELECT 
-          id, domain, status, created_at, updated_at,
-          crawling_status, chunking_status, embedding_status, extraction_status,
-          pages_crawled, chunks_created, embeddings_generated, facts_extracted
-        FROM enrichment_jobs 
-        WHERE domain = $1
-        ORDER BY created_at DESC
-        LIMIT 10
-      `;
-      
-      const result = await pool.query(jobsQuery, [domain]);
-      
-      return NextResponse.json({
-        jobs: result.rows.map(job => ({
-          ...job,
-          workflow_status: {
-            crawling: job.crawling_status,
-            chunking: job.chunking_status,
-            embedding: job.embedding_status,
-            extraction: job.extraction_status
-          }
-        }))
-      });
-
-    } else {
-      // Get all recent jobs
-      const jobsQuery = `
-        SELECT 
-          id, domain, status, created_at, updated_at,
-          crawling_status, chunking_status, embedding_status, extraction_status,
-          pages_crawled, chunks_created, embeddings_generated, facts_extracted
-        FROM enrichment_jobs 
-        ORDER BY created_at DESC
-        LIMIT 50
-      `;
-      
-      const result = await pool.query(jobsQuery);
-      
-      return NextResponse.json({
-        jobs: result.rows.map(job => ({
-          ...job,
-          workflow_status: {
-            crawling: job.crawling_status,
-            chunking: job.chunking_status,
-            embedding: job.embedding_status,
-            extraction: job.extraction_status
-          }
-        }))
-      });
+      return NextResponse.json(job);
     }
 
+    if (domain) {
+      // Get jobs for specific domain
+      const jobs = await jobRepository.findByDomain(domain);
+      return NextResponse.json({ jobs });
+    }
+
+    // Return error if no parameters provided
+    return NextResponse.json({
+      error: 'Missing required parameter',
+      message: 'Provide either "id" or "domain" parameter'
+    }, { status: 400 });
+
   } catch (error) {
-    console.error('Error fetching enrichment jobs:', error);
-    
-    return NextResponse.json(
-      { 
-        error: 'Internal server error',
-        message: 'Failed to fetch enrichment jobs'
-      },
-      { status: 500 }
-    );
+    console.error('Error fetching enrichment job:', error);
+    return NextResponse.json({
+      error: 'Internal server error',
+      message: 'Failed to fetch enrichment job'
+    }, { status: 500 });
   }
 }

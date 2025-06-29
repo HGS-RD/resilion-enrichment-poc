@@ -108,6 +108,7 @@ export interface JobRepository {
   updateStepStatus(id: string, step: keyof Pick<EnrichmentJob, 'crawling_status' | 'chunking_status' | 'embedding_status' | 'extraction_status'>, status: StepStatus): Promise<void>;
   updateProgress(id: string, progress: Partial<Pick<EnrichmentJob, 'pages_crawled' | 'chunks_created' | 'embeddings_generated' | 'facts_extracted'>>): Promise<void>;
   logError(id: string, error: string, step?: string): Promise<void>;
+  incrementRetryCount(id: string): Promise<void>;
 }
 
 export interface FactRepository {

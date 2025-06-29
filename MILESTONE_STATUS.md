@@ -37,13 +37,24 @@
 
 ---
 
-## Milestone 2: Backend Core Logic 🔄 **PENDING**
+## Milestone 2: Backend Core Logic 🔄 **IN PROGRESS**
 
-**Status:** 🔄 Not Started  
-**Target Start:** 2025-06-30  
+**Status:** 🔄 In Progress  
+**Started:** 2025-06-29  
 **Estimated Duration:** 3-5 days
 
-### 📋 Requirements:
+### ✅ Tasks Completed:
+- [x] Set up feature/backend-core branch
+- [x] Created comprehensive database schema with migrations
+- [x] Documented enrichment job data model in TypeScript
+- [x] Set up comprehensive testing infrastructure with Vitest
+- [x] Configured coverage thresholds (99% global, 100% for services/API)
+- [x] Added test fixtures and mock services for TDD development
+
+### 🔄 Current Task:
+- **Implementing API endpoint** - Creating domain acceptance endpoint with job creation
+
+### 📋 Remaining Requirements:
 - [ ] Implement the core `EnrichmentAgent` service
 - [ ] Develop job initialization logic (API endpoint to accept a domain)
 - [ ] Build web crawling and text chunking steps
