@@ -27,7 +27,8 @@
     "test:accessibility": "playwright test --config playwright.a11y.config.ts",
     "test:all": "npm run test:coverage && npm run test:e2e && npm run test:visual",
     "test:ci": "npm run test:coverage:check && npm run test:e2e && npm run test:visual",
-    "validate:deployment": "node scripts/validate-deployment.js"
+    "validate:deployment": "node scripts/validate-deployment.js",
+    "configure:digitalocean": "node scripts/configure-digitalocean-app.js"
   },
   "devDependencies": {
     "@lhci/cli": "^0.12.0",
@@ -52,6 +53,7 @@
   "dependencies": {
     "autoprefixer": "^10.4.14",
     "clsx": "^2.1.1",
+    "dotenv": "^16.3.1",
     "postcss": "^8.4.24",
     "tailwind-merge": "^3.3.1",
     "tailwindcss": "3.4.6",
