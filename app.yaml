@@ -14,8 +14,8 @@ services:
     repo: HGS-RD/resilion-enrichment-poc
     branch: main
     deploy_on_push: true
-  run_command: cd apps/web && next start
-  build_command: turbo build
+  run_command: cd apps/web && npm start
+  build_command: npm install && npm run build:web
   environment_slug: node-js
   instance_count: 1
   instance_size_slug: basic-xxs
@@ -43,25 +43,6 @@ services:
     value: info
 
 databases:
-- name: resilion-db
+- name: resilion-preloader-db
   engine: PG
   production: true
-
-jobs:
-- name: db-migrate
-  source_dir: /
-  github:
-    repo: HGS-RD/resilion-enrichment-poc
-    branch: main
-  run_command: |
-    cd db && 
-    export PGPASSWORD=$DATABASE_PASSWORD && 
-    psql -h $DATABASE_HOST -p $DATABASE_PORT -U $DATABASE_USER -d $DATABASE_NAME -f schema.sql
-  environment_slug: node-js
-  instance_count: 1
-  instance_size_slug: basic-xxs
-  kind: PRE_DEPLOY
-  envs:
-  - key: DATABASE_URL
-    scope: RUN_TIME
-    type: SECRET
