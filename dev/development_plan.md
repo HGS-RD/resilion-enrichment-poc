@@ -92,6 +92,7 @@ The development will proceed in the following milestones:
 *   Define database schema and create initial migration scripts (for `enrichment_jobs` and `enrichment_facts` tables).
 *   Establish environment variable management for API keys and database connections.
 *   Implement dark mode support using next-themes provider.
+*   **Task Management:** Update milestone status to `Complete` in project tracking.
 *   **Git:** Create feature branch, commit each setup step, push and create PR for milestone completion.
 
 ### Milestone 2: Backend Core Logic (3-5 days)
@@ -99,6 +100,7 @@ The development will proceed in the following milestones:
 *   Develop the job initialization logic (API endpoint to accept a domain).
 *   Build the first two steps of the chain: web crawling and text chunking.
 *   Integrate with Pinecone to store text chunks and embeddings.
+*   **Task Management:** Update milestone status to `Complete` in project tracking.
 *   **Git:** Work in feature/backend-core branch, commit after each service implementation, create PR for review.
 
 ### Milestone 3: AI-Powered Extraction (3-4 days)
@@ -106,6 +108,7 @@ The development will proceed in the following milestones:
 *   Integrate the AI SDK to call the LLM for extraction.
 *   Implement JSON schema validation on the LLM output.
 *   Implement the confidence scoring and data persistence steps in the chain.
+*   **Task Management:** Update milestone status to `Complete` in project tracking.
 *   **Git:** Use feature/ai-extraction branch, commit prompt changes and AI integration separately, create PR.
 
 ### Milestone 4: Frontend Implementation (4-6 days)
@@ -114,6 +117,7 @@ The development will proceed in the following milestones:
 *   Implement the job trigger panel using shadcn/ui Card, Input, and Button components.
 *   Integrate Mermaid.js for the workflow visualization, driven by backend status polling using shadcn/ui Card layout.
 *   Create the job status table and the fact viewer panel using shadcn/ui Table and Badge components.
+*   **Task Management:** Update milestone status to `Complete` in project tracking.
 *   **Git:** Work in feature/frontend-ui branch, commit each component implementation, create PR for review.
 
 ### Milestone 5: Integration, Testing & Deployment (3-4 days)
@@ -121,6 +125,7 @@ The development will proceed in the following milestones:
 *   Implement error handling and retry logic.
 *   Write unit and integration tests for critical components (especially the agent chain and data validation).
 *   Deploy to DigitalOcean App Platform and conduct a full test with a pilot customer domain.
+*   **Task Management:** Update milestone status to `Complete` in project tracking.
 *   **Git:** Use feature/integration-testing branch, commit test implementations and deployment configs, create final PR.
 
 ---
@@ -129,28 +134,28 @@ The development will proceed in the following milestones:
 
 ### Priority 1: Must-Have
 
-*   **Ticket-101:** [Setup] Initialize Git monorepo and configure basic CI/CD with DigitalOcean. **Git:** Commit setup configs, push feature branch, create PR.
-*   **Ticket-102:** [DB] Define and apply Postgres schema for `enrichment_jobs` and `facts`. **Git:** Commit schema files and migrations, push changes.
-*   **Ticket-103:** [Backend] Create API endpoint to trigger a new enrichment job. **Git:** Commit API route implementation, push to feature branch.
-*   **Ticket-104:** [Agent] Implement web crawler to fetch content from a given domain. **Git:** Commit crawler service, push changes with tests.
-*   **Ticket-105:** [Agent] Implement text chunking and embedding with Pinecone integration. **Git:** Commit chunking logic and Pinecone integration, push changes.
-*   **Ticket-106:** [Agent] Implement AI SDK-based entity extraction using the prompt template. **Git:** Commit prompt template and AI integration, push changes.
-*   **Ticket-107:** [Agent] Implement data persistence to Postgres. **Git:** Commit repository pattern implementation, push changes.
-*   **Ticket-108:** [Frontend] Build UI for triggering enrichment jobs using shadcn/ui Card, Input, and Button components. **Git:** Commit UI components, push to feature branch.
-*   **Ticket-109:** [Frontend] Implement Mermaid.js visualization with status polling using shadcn/ui Card layout. **Git:** Commit visualization components, push changes.
-*   **Ticket-110:** [Frontend] Display extracted facts and confidence scores using shadcn/ui Table and Badge components. **Git:** Commit fact display components, push final changes.
+*   **Ticket-101:** [Setup] Initialize Git monorepo and configure basic CI/CD with DigitalOcean. **Task Management:** Update ticket status to `Complete`. **Git:** Commit setup configs, push feature branch, create PR.
+*   **Ticket-102:** [DB] Define and apply Postgres schema for `enrichment_jobs` and `facts`. **Task Management:** Update ticket status to `Complete`. **Git:** Commit schema files and migrations, push changes.
+*   **Ticket-103:** [Backend] Create API endpoint to trigger a new enrichment job. **Task Management:** Update ticket status to `Complete`. **Git:** Commit API route implementation, push to feature branch.
+*   **Ticket-104:** [Agent] Implement web crawler to fetch content from a given domain. **Task Management:** Update ticket status to `Complete`. **Git:** Commit crawler service, push changes with tests.
+*   **Ticket-105:** [Agent] Implement text chunking and embedding with Pinecone integration. **Task Management:** Update ticket status to `Complete`. **Git:** Commit chunking logic and Pinecone integration, push changes.
+*   **Ticket-106:** [Agent] Implement AI SDK-based entity extraction using the prompt template. **Task Management:** Update ticket status to `Complete`. **Git:** Commit prompt template and AI integration, push changes.
+*   **Ticket-107:** [Agent] Implement data persistence to Postgres. **Task Management:** Update ticket status to `Complete`. **Git:** Commit repository pattern implementation, push changes.
+*   **Ticket-108:** [Frontend] Build UI for triggering enrichment jobs using shadcn/ui Card, Input, and Button components. **Task Management:** Update ticket status to `Complete`. **Git:** Commit UI components, push to feature branch.
+*   **Ticket-109:** [Frontend] Implement Mermaid.js visualization with status polling using shadcn/ui Card layout. **Task Management:** Update ticket status to `Complete`. **Git:** Commit visualization components, push changes.
+*   **Ticket-110:** [Frontend] Display extracted facts and confidence scores using shadcn/ui Table and Badge components. **Task Management:** Update ticket status to `Complete`. **Git:** Commit fact display components, push final changes.
 
 ### Priority 2: Should-Have
 
-*   **Ticket-201:** [Backend] Implement robust error logging for failed enrichment steps. **Git:** Commit error handling improvements, push changes.
-*   **Ticket-202:** [Backend] Add support for manual job retries. **Git:** Commit retry logic implementation, push changes.
-*   **Ticket-203:** [Testing] Write unit tests for the extraction and validation logic. **Git:** Commit test suites, push changes with CI updates.
-*   **Ticket-204:** [Docs] Document environment variables and setup instructions in `README.md`. **Git:** Commit documentation updates, push changes.
+*   **Ticket-201:** [Backend] Implement robust error logging for failed enrichment steps. **Task Management:** Update ticket status to `Complete`. **Git:** Commit error handling improvements, push changes.
+*   **Ticket-202:** [Backend] Add support for manual job retries. **Task Management:** Update ticket status to `Complete`. **Git:** Commit retry logic implementation, push changes.
+*   **Ticket-203:** [Testing] Write unit tests for the extraction and validation logic. **Task Management:** Update ticket status to `Complete`. **Git:** Commit test suites, push changes with CI updates.
+*   **Ticket-204:** [Docs] Document environment variables and setup instructions in `README.md`. **Task Management:** Update ticket status to `Complete`. **Git:** Commit documentation updates, push changes.
 
 ### Priority 3: Nice-to-Have
 
-*   **Ticket-301:** [Frontend] Add color-coding to the fact viewer based on confidence scores. **Git:** Commit UI enhancements, push changes.
-*   **Ticket-302:** [Testing] Create a suite of prompt validation tests. **Git:** Commit prompt test suite, push final changes.
+*   **Ticket-301:** [Frontend] Add color-coding to the fact viewer based on confidence scores. **Task Management:** Update ticket status to `Complete`. **Git:** Commit UI enhancements, push changes.
+*   **Ticket-302:** [Testing] Create a suite of prompt validation tests. **Task Management:** Update ticket status to `Complete`. **Git:** Commit prompt test suite, push final changes.
 
 ---
 
