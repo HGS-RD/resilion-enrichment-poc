@@ -122,6 +122,29 @@ module.exports = {
 **Fallback**: `import { Component } from "../components/component"`
 **Application**: Essential for monorepo setups where path resolution can be complex
 
+## Git Workflow & Version Control
+
+### Feature Branch Development Strategy
+**Pattern**: Use feature branches for all development work with clear naming conventions.
+**Branch Types**:
+- `feature/[milestone-name]` - For major milestones
+- `feature/[ticket-number]-[description]` - For individual tickets
+- `main` - Production-ready code only
+**Benefits**: Clean history, isolated development, proper code review process
+
+### Conventional Commit Standards
+**Pattern**: Use structured commit messages following conventional commit format.
+**Format**: `type(scope): description`
+**Common Types**: feat, fix, docs, style, refactor, test, chore
+**Example**: `feat(auth): add user authentication with JWT tokens`
+**Benefits**: Clear change history, automated changelog generation, semantic versioning support
+
+### Development Plan Integration
+**Pattern**: Include git best practices as final step in all development tickets and milestones.
+**Implementation**: Add "Git: commit changes, push to feature branch, create PR" to each ticket
+**Rationale**: Ensures consistent version control practices and prevents work from being lost
+**Application**: Essential for team development and project continuity
+
 ---
 
 *Last Updated: 2025-06-29*
