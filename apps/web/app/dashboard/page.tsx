@@ -2,7 +2,6 @@
 
 import { 
   StatCard, 
-  WorkflowProgress, 
   Card, 
   CardContent, 
   CardHeader, 
@@ -13,9 +12,12 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-  JobStatusBadge,
-  ErrorDialog,
-  Button
+  Button,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
 } from "@workspace/ui"
 import { 
   TrendingUp, 
@@ -23,102 +25,85 @@ import {
   Target, 
   Database,
   AlertTriangle,
-  ExternalLink
+  Bell
 } from "lucide-react"
 
-// Mock data for demonstration
+// Mock data matching the dashboard mockup
 const mockStats = {
-  totalJobs: 1247,
+  totalJobs: 247,
   successRate: 94.2,
   avgConfidence: 87.5,
-  factsFound: 15623
+  factsFound: 8429
 }
 
-const mockWorkflowSteps = [
+const mockTopErrors = [
   {
-    id: "1",
-    name: "Web Crawling",
-    status: "completed" as const,
-    details: "Crawled 45 pages from acme-corp.com"
+    type: "Connection Timeout",
+    description: "Network issues",
+    count: 8,
+    color: "text-red-600"
   },
   {
-    id: "2", 
-    name: "Text Chunking",
-    status: "completed" as const,
-    details: "Created 234 text chunks"
+    type: "Parse Error", 
+    description: "Invalid JSON",
+    count: 5,
+    color: "text-orange-600"
   },
   {
-    id: "3",
-    name: "Embedding Generation", 
-    status: "running" as const,
-    progress: 67,
-    details: "Processing embeddings with Pinecone"
+    type: "Rate Limited",
+    description: "API throttling", 
+    count: 3,
+    color: "text-yellow-600"
   },
   {
-    id: "4",
-    name: "Entity Extraction",
-    status: "pending" as const,
-    details: "Waiting for embeddings to complete"
-  },
-  {
-    id: "5",
-    name: "Fact Validation",
-    status: "pending" as const,
-    details: "AI-powered confidence scoring"
+    type: "Auth Failed",
+    description: "Access denied",
+    count: 2,
+    color: "text-purple-600"
   }
 ]
 
 const mockRecentActivity = [
   {
-    id: "job-001",
-    domain: "acme-corp.com",
-    status: "running" as const,
-    startTime: "2025-06-29 09:15:00",
-    factsFound: 0
+    id: "ENR-2024-001",
+    domain: "globalsteel.org",
+    status: "Completed",
+    startTime: "2024-01-15 10:30:00",
+    endTime: "2024-01-15 10:45:00",
+    factsFound: 47
   },
   {
-    id: "job-002", 
-    domain: "techstart.io",
-    status: "completed" as const,
-    startTime: "2025-06-29 08:45:00",
+    id: "ENR-2024-002", 
+    domain: "techcorp.io",
+    status: "Running",
+    startTime: "2024-01-15 11:15:00",
+    endTime: "-",
     factsFound: 23
   },
   {
-    id: "job-003",
-    domain: "manufacturing-co.com", 
-    status: "failed" as const,
-    startTime: "2025-06-29 08:30:00",
+    id: "ENR-2024-003",
+    domain: "acme-corp.com", 
+    status: "Failed",
+    startTime: "2024-01-15 09:45:00",
+    endTime: "2024-01-15 09:47:00",
     factsFound: 0
-  }
-]
-
-const mockTopErrors = [
-  {
-    error: "Rate limit exceeded for OpenAI API",
-    count: 12,
-    lastOccurred: "2 hours ago"
-  },
-  {
-    error: "Domain unreachable: Connection timeout",
-    count: 8,
-    lastOccurred: "4 hours ago"
-  },
-  {
-    error: "Invalid JSON schema in extraction response",
-    count: 5,
-    lastOccurred: "6 hours ago"
   }
 ]
 
 export default function DashboardPage() {
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-600 mt-1">
-          Monitor enrichment jobs and system performance
-        </p>
+    <div className="flex-1 p-6 space-y-6">
+      {/* Header with breadcrumb */}
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
+            <span>Dashboard</span>
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
+        </div>
+        <Button variant="ghost" size="sm">
+          <Bell className="h-4 w-4" />
+        </Button>
       </div>
 
       {/* Stats Cards */}
@@ -126,69 +111,87 @@ export default function DashboardPage() {
         <StatCard
           title="Total Jobs"
           value={mockStats.totalJobs.toLocaleString()}
-          icon={<Database />}
-          trend={{ value: 12.5, isPositive: true }}
+          icon={<Database className="h-4 w-4 text-blue-500" />}
+          trend={{ value: 12, isPositive: true }}
+          description="+12% this month"
+          className="bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800"
         />
         <StatCard
           title="Success Rate"
           value={`${mockStats.successRate}%`}
-          icon={<CheckCircle />}
+          icon={<CheckCircle className="h-4 w-4 text-green-500" />}
           trend={{ value: 2.1, isPositive: true }}
+          description="+2.1% this week"
+          className="bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800"
         />
         <StatCard
           title="Avg Confidence"
           value={`${mockStats.avgConfidence}%`}
-          icon={<Target />}
+          icon={<Target className="h-4 w-4 text-yellow-500" />}
           trend={{ value: -1.2, isPositive: false }}
+          description="-1.2% this week"
+          className="bg-yellow-50 dark:bg-yellow-950/20 border-yellow-200 dark:border-yellow-800"
         />
         <StatCard
           title="Facts Found"
           value={mockStats.factsFound.toLocaleString()}
-          icon={<TrendingUp />}
-          trend={{ value: 8.7, isPositive: true }}
+          icon={<TrendingUp className="h-4 w-4 text-purple-500" />}
+          trend={{ value: 18, isPositive: true }}
+          description="+18% this month"
+          className="bg-purple-50 dark:bg-purple-950/20 border-purple-200 dark:border-purple-800"
         />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Workflow Progress */}
+        {/* Enrichment Jobs Trend Chart */}
         <div className="lg:col-span-2">
-          <WorkflowProgress steps={mockWorkflowSteps} />
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>Enrichment Jobs Trend</CardTitle>
+              <Select defaultValue="30">
+                <SelectTrigger className="w-32">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="7">Last 7 days</SelectItem>
+                  <SelectItem value="30">Last 30 days</SelectItem>
+                  <SelectItem value="90">Last 90 days</SelectItem>
+                </SelectContent>
+              </Select>
+            </CardHeader>
+            <CardContent>
+              <div className="h-64 flex items-center justify-center bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <div className="text-center">
+                  <TrendingUp className="h-12 w-12 text-gray-400 mx-auto mb-2" />
+                  <p className="text-gray-500">Chart placeholder</p>
+                  <p className="text-sm text-gray-400">Trend visualization will be implemented</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Top Errors */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-orange-500" />
               Top Errors
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               {mockTopErrors.map((error, index) => (
-                <div key={index} className="flex items-start justify-between">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">
-                      {error.error}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {error.count} occurrences • {error.lastOccurred}
-                    </p>
+                <div key={index} className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <div className="font-medium text-sm">{error.type}</div>
+                      <div className="text-right">
+                        <div className="font-bold text-lg">{error.count}</div>
+                        <div className="text-xs text-gray-500">instances</div>
+                      </div>
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">{error.description}</div>
                   </div>
-                  <ErrorDialog
-                    trigger={
-                      <Button variant="ghost" size="sm">
-                        <ExternalLink className="h-3 w-3" />
-                      </Button>
-                    }
-                    jobId="job-003"
-                    domain="manufacturing-co.com"
-                    status="Failed"
-                    failureTimestamp="2025-06-29 08:30:00"
-                    errorSummary={error.error}
-                    stackTrace={`Error: ${error.error}\n    at EnrichmentAgent.extractEntities (agent.ts:145:12)\n    at async EnrichmentAgent.processJob (agent.ts:89:5)\n    at async JobProcessor.execute (processor.ts:34:7)`}
-                    onRetry={() => console.log("Retry job")}
-                  />
                 </div>
               ))}
             </div>
@@ -196,10 +199,13 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {/* Recent Activity */}
+      {/* Recent Enrichment Activity */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Recent Enrichment Activity</CardTitle>
+          <Button variant="ghost" size="sm" className="text-blue-600">
+            View All
+          </Button>
         </CardHeader>
         <CardContent>
           <Table>
@@ -209,6 +215,7 @@ export default function DashboardPage() {
                 <TableHead>Domain</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Start Time</TableHead>
+                <TableHead>End Time</TableHead>
                 <TableHead>Facts Found</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
@@ -219,10 +226,19 @@ export default function DashboardPage() {
                   <TableCell className="font-mono text-sm">{job.id}</TableCell>
                   <TableCell>{job.domain}</TableCell>
                   <TableCell>
-                    <JobStatusBadge status={job.status} />
+                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                      job.status === 'Completed' ? 'bg-green-100 text-green-800' :
+                      job.status === 'Running' ? 'bg-blue-100 text-blue-800' :
+                      'bg-red-100 text-red-800'
+                    }`}>
+                      {job.status}
+                    </span>
                   </TableCell>
                   <TableCell className="text-sm text-gray-600">
                     {job.startTime}
+                  </TableCell>
+                  <TableCell className="text-sm text-gray-600">
+                    {job.endTime}
                   </TableCell>
                   <TableCell>{job.factsFound}</TableCell>
                   <TableCell>

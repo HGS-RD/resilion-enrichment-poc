@@ -18,12 +18,12 @@ const navigation = [
     icon: LayoutDashboard
   },
   {
-    name: "Jobs",
+    name: "Enrichment Jobs",
     href: "/jobs", 
     icon: Briefcase
   },
   {
-    name: "Facts",
+    name: "Fact Viewer",
     href: "/facts",
     icon: FileText
   },
@@ -32,6 +32,13 @@ const navigation = [
     href: "/settings",
     icon: Settings
   }
+]
+
+// Mock recent jobs data - in real app this would come from API
+const recentJobs = [
+  { domain: "globalsteel.org", status: "completed" },
+  { domain: "acme.com", status: "failed" },
+  { domain: "techcorp.io", status: "pending" }
 ]
 
 export function Navigation() {
@@ -73,6 +80,33 @@ export function Navigation() {
             )
           })}
         </ul>
+
+        {/* Recent Jobs Section */}
+        <div className="mt-8">
+          <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
+            Recent Jobs
+          </h3>
+          <ul className="space-y-2">
+            {recentJobs.map((job, index) => (
+              <li key={index}>
+                <Link
+                  href={`/jobs?domain=${job.domain}`}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                >
+                  <div className={cn(
+                    "w-2 h-2 rounded-full",
+                    job.status === "completed" ? "bg-green-500" :
+                    job.status === "failed" ? "bg-red-500" :
+                    "bg-yellow-500"
+                  )} />
+                  <span className="text-gray-700 dark:text-gray-300 truncate">
+                    {job.domain}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
       </div>
     </nav>
   )
