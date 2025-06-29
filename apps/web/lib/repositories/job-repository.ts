@@ -185,6 +185,18 @@ export class JobRepository implements IJobRepository {
     const client = await this.pool.connect();
     
     try {
+      await client.query('BEGIN');
+
+      // Get job details for failed_jobs table
+      const jobQuery = 'SELECT domain FROM enrichment_jobs WHERE id = $1';
+      const jobResult = await client.query(jobQuery, [id]);
+      
+      if (jobResult.rows.length === 0) {
+        throw new Error(`Job ${id} not found`);
+      }
+
+      const domain = jobResult.rows[0].domain;
+
       // Update job with error
       const updateQuery = `
         UPDATE enrichment_jobs 
@@ -194,8 +206,46 @@ export class JobRepository implements IJobRepository {
       
       await client.query(updateQuery, [id, error]);
       
-      // Optionally log to separate error table (if exists)
-      // This could be implemented for detailed error tracking
+      // Log to failed_jobs table (Dead Letter Queue)
+      const failedJobQuery = `
+        INSERT INTO failed_jobs (
+          original_job_id, domain, failure_step, error_message, 
+          error_details, failed_at, retry_attempted, retry_count
+        ) VALUES ($1, $2, $3, $4, $5, NOW(), false, 0)
+      `;
+      
+      const errorDetails = {
+        timestamp: new Date().toISOString(),
+        step: step || 'unknown',
+        error_type: 'enrichment_failure',
+        job_id: id
+      };
+      
+      await client.query(failedJobQuery, [
+        id, 
+        domain, 
+        step || 'unknown', 
+        error, 
+        JSON.stringify(errorDetails)
+      ]);
+
+      // Log to job_logs table for detailed tracking
+      const logQuery = `
+        INSERT INTO job_logs (job_id, level, message, details, created_at)
+        VALUES ($1, 'error', $2, $3, NOW())
+      `;
+      
+      await client.query(logQuery, [
+        id,
+        `Job failed at step: ${step || 'unknown'} - ${error}`,
+        JSON.stringify(errorDetails)
+      ]);
+
+      await client.query('COMMIT');
+    } catch (dbError) {
+      await client.query('ROLLBACK');
+      console.error('Failed to log error to database:', dbError);
+      throw dbError;
     } finally {
       client.release();
     }
@@ -234,6 +284,26 @@ export class JobRepository implements IJobRepository {
         LIMIT $2
       `;
       const result = await client.query(query, [status, limit]);
+      
+      return result.rows.map(row => this.mapRowToJob(row));
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * Gets recent jobs (all statuses)
+   */
+  async findRecent(limit: number = 50): Promise<EnrichmentJob[]> {
+    const client = await this.pool.connect();
+    
+    try {
+      const query = `
+        SELECT * FROM enrichment_jobs 
+        ORDER BY created_at DESC
+        LIMIT $1
+      `;
+      const result = await client.query(query, [limit]);
       
       return result.rows.map(row => this.mapRowToJob(row));
     } finally {

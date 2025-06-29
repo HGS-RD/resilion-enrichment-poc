@@ -21,6 +21,7 @@ import {
   EnrichmentTrendChart,
   TopErrorsBlock
 } from "@workspace/ui"
+import { useEnrichmentJobs } from "@workspace/ui"
 import { 
   TrendingUp, 
   CheckCircle, 
@@ -93,6 +94,15 @@ const mockRecentActivity = [
 ]
 
 export default function DashboardPage() {
+  const { jobs, stats } = useEnrichmentJobs()
+  
+  // Get recent jobs (last 5)
+  const recentJobs = jobs.slice(0, 5)
+  
+  const formatDateTime = (dateString: string) => {
+    return new Date(dateString).toLocaleString()
+  }
+
   return (
     <div className="flex-1 p-6 space-y-6">
       {/* Header with breadcrumb */}
@@ -112,7 +122,7 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
           title="Total Jobs"
-          value={mockStats.totalJobs.toLocaleString()}
+          value={stats.totalJobs.toLocaleString()}
           icon={<Database className="h-4 w-4 text-blue-500" />}
           trend={{ value: 12, isPositive: true }}
           description="+12% this month"
@@ -120,7 +130,7 @@ export default function DashboardPage() {
         />
         <StatCard
           title="Success Rate"
-          value={`${mockStats.successRate}%`}
+          value={`${stats.successRate}%`}
           icon={<CheckCircle className="h-4 w-4 text-green-500" />}
           trend={{ value: 2.1, isPositive: true }}
           description="+2.1% this week"
@@ -128,7 +138,7 @@ export default function DashboardPage() {
         />
         <StatCard
           title="Avg Confidence"
-          value={`${mockStats.avgConfidence}%`}
+          value={`${stats.avgConfidence}%`}
           icon={<Target className="h-4 w-4 text-yellow-500" />}
           trend={{ value: -1.2, isPositive: false }}
           description="-1.2% this week"
@@ -136,7 +146,7 @@ export default function DashboardPage() {
         />
         <StatCard
           title="Facts Found"
-          value={mockStats.factsFound.toLocaleString()}
+          value={stats.factsFound.toLocaleString()}
           icon={<TrendingUp className="h-4 w-4 text-purple-500" />}
           trend={{ value: 18, isPositive: true }}
           description="+18% this month"
@@ -176,24 +186,25 @@ export default function DashboardPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {mockRecentActivity.map((job) => (
+              {recentJobs.map((job) => (
                 <TableRow key={job.id}>
                   <TableCell className="font-mono text-sm">{job.id}</TableCell>
                   <TableCell>{job.domain}</TableCell>
                   <TableCell>
                     <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                      job.status === 'Completed' ? 'bg-green-100 text-green-800' :
-                      job.status === 'Running' ? 'bg-blue-100 text-blue-800' :
+                      job.status === 'completed' ? 'bg-green-100 text-green-800' :
+                      job.status === 'running' ? 'bg-blue-100 text-blue-800' :
+                      job.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
                       'bg-red-100 text-red-800'
                     }`}>
-                      {job.status}
+                      {job.status.charAt(0).toUpperCase() + job.status.slice(1)}
                     </span>
                   </TableCell>
                   <TableCell className="text-sm text-gray-600">
-                    {job.startTime}
+                    {formatDateTime(job.startTime)}
                   </TableCell>
                   <TableCell className="text-sm text-gray-600">
-                    {job.endTime}
+                    {job.endTime ? formatDateTime(job.endTime) : "-"}
                   </TableCell>
                   <TableCell>{job.factsFound}</TableCell>
                   <TableCell>

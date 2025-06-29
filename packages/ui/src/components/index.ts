@@ -21,3 +21,6 @@ export * from "./workflow-progress"
 export * from "./enrichment-trend-chart"
 export * from "./command-menu"
 export * from "./top-errors-block"
+
+// Export hooks
+export * from "../hooks/use-enrichment-jobs"

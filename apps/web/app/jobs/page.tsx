@@ -17,8 +17,10 @@ import {
   Tabs,
   TabsContent,
   TabsList,
-  TabsTrigger
+  TabsTrigger,
+  WorkflowProgress
 } from "@workspace/ui"
+import { useEnrichmentJobs } from "@workspace/ui"
 import { 
   Search, 
   Play, 
@@ -26,7 +28,9 @@ import {
   HelpCircle,
   Filter,
   Download,
-  MoreHorizontal
+  MoreHorizontal,
+  RefreshCw,
+  AlertCircle
 } from "lucide-react"
 
 // Mock data for demonstration
@@ -70,18 +74,39 @@ const workflowSteps = [
 export default function JobsPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [activeTab, setActiveTab] = useState("All")
-  const [domainInput, setDomainInput] = useState("e.g. acme.com")
+  const [domainInput, setDomainInput] = useState("")
+  
+  const { 
+    jobs, 
+    isLoading, 
+    error, 
+    createJob, 
+    startJob, 
+    refreshJobs 
+  } = useEnrichmentJobs()
 
-  const filteredJobs = mockJobs.filter(job => {
+  const filteredJobs = jobs.filter(job => {
     const matchesSearch = job.domain.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          job.id.toLowerCase().includes(searchTerm.toLowerCase())
     
     if (activeTab === "All") return matchesSearch
-    return matchesSearch && job.status === activeTab
+    return matchesSearch && job.status === activeTab.toLowerCase()
   })
 
-  const handleStartEnrichment = () => {
-    console.log("Starting enrichment for:", domainInput)
+  const runningJob = jobs.find(job => job.status === "running")
+
+  const handleStartEnrichment = async () => {
+    if (!domainInput.trim()) return
+    
+    const jobId = await createJob(domainInput.trim())
+    if (jobId) {
+      await startJob(jobId)
+      setDomainInput("")
+    }
+  }
+
+  const formatDateTime = (dateString: string) => {
+    return new Date(dateString).toLocaleString()
   }
 
   return (
@@ -175,65 +200,33 @@ export default function JobsPage() {
           </Card>
 
           {/* Current Job Workflow */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Current Job Workflow</CardTitle>
-              <div className="flex items-center gap-2 text-sm text-gray-500">
-                <span>Job ID: #JOB-2023-06-29-001</span>
-                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                  Running
-                </span>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {/* Workflow Steps */}
-              <div className="flex items-center justify-between mb-6">
-                {workflowSteps.map((step, index) => (
-                  <div key={step.name} className="flex flex-col items-center">
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg mb-2 ${
-                      step.status === 'Completed' ? 'bg-green-100 text-green-600' :
-                      step.status === 'Running' ? 'bg-blue-100 text-blue-600' :
-                      'bg-gray-100 text-gray-400'
-                    }`}>
-                      {step.icon}
-                    </div>
-                    <div className="text-xs font-medium text-center">
-                      <div>{step.name}</div>
-                      <div className={`text-xs ${
-                        step.status === 'Completed' ? 'text-green-600' :
-                        step.status === 'Running' ? 'text-blue-600' :
-                        'text-gray-400'
-                      }`}>
-                        {step.status}
-                      </div>
-                    </div>
-                    {index < workflowSteps.length - 1 && (
-                      <div className="absolute w-8 h-0.5 bg-gray-200 mt-6" style={{
-                        left: `${(index + 1) * (100 / workflowSteps.length)}%`,
-                        transform: 'translateX(-50%)'
-                      }} />
-                    )}
-                  </div>
-                ))}
-              </div>
+          {runningJob && (
+            <WorkflowProgress
+              jobId={runningJob.id}
+              domain={runningJob.domain}
+              currentStep={runningJob.progress?.currentStep || "pending"}
+              stepsCompleted={runningJob.progress?.stepsCompleted || 0}
+              totalSteps={runningJob.progress?.totalSteps || 7}
+              progress={runningJob.progress ? {
+                pagesCrawled: runningJob.progress.pagesCrawled,
+                chunksCreated: runningJob.progress.chunksCreated,
+                embeddingsProgress: runningJob.progress.embeddingsProgress
+              } : undefined}
+            />
+          )}
 
-              {/* Progress Stats */}
-              <div className="grid grid-cols-3 gap-6 text-center">
-                <div>
-                  <div className="text-2xl font-bold">42</div>
-                  <div className="text-sm text-gray-500">Pages Crawled</div>
+          {/* Error Display */}
+          {error && (
+            <Card className="border-red-200 bg-red-50">
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-2 text-red-800">
+                  <AlertCircle className="h-4 w-4" />
+                  <span className="font-medium">Error:</span>
+                  <span>{error}</span>
                 </div>
-                <div>
-                  <div className="text-2xl font-bold">156</div>
-                  <div className="text-sm text-gray-500">Chunks Created</div>
-                </div>
-                <div>
-                  <div className="text-2xl font-bold">68%</div>
-                  <div className="text-sm text-gray-500">Embeddings Progress</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Recent Enrichment Jobs */}
           <Card>
@@ -271,18 +264,19 @@ export default function JobsPage() {
                       <TableCell className="font-mono text-sm">{job.id}</TableCell>
                       <TableCell>
                         <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                          job.status === 'Completed' ? 'bg-green-100 text-green-800' :
-                          job.status === 'Running' ? 'bg-blue-100 text-blue-800' :
+                          job.status === 'completed' ? 'bg-green-100 text-green-800' :
+                          job.status === 'running' ? 'bg-blue-100 text-blue-800' :
+                          job.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
                           'bg-red-100 text-red-800'
                         }`}>
-                          {job.status}
+                          {job.status.charAt(0).toUpperCase() + job.status.slice(1)}
                         </span>
                       </TableCell>
                       <TableCell className="text-sm text-gray-600">
-                        {job.startTime}
+                        {formatDateTime(job.startTime)}
                       </TableCell>
                       <TableCell className="text-sm text-gray-600">
-                        {job.endTime}
+                        {job.endTime ? formatDateTime(job.endTime) : "-"}
                       </TableCell>
                       <TableCell>{job.factsFound}</TableCell>
                       <TableCell>

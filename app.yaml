@@ -1,0 +1,65 @@
+name: resilion-enrichment-poc
+services:
+- name: web
+  source_dir: /
+  github:
+    repo: ori-project/resilion-enrichment-poc
+    branch: main
+  run_command: cd apps/web && npm start
+  build_command: npm install && npm run build
+  environment_slug: node-js
+  instance_count: 1
+  instance_size_slug: basic-xxs
+  http_port: 3000
+  routes:
+  - path: /
+  health_check:
+    http_path: /api/health
+  envs:
+  - key: NODE_ENV
+    value: production
+  - key: DATABASE_URL
+    scope: RUN_AND_BUILD_TIME
+    type: SECRET
+  - key: PINECONE_API_KEY
+    scope: RUN_AND_BUILD_TIME
+    type: SECRET
+  - key: PINECONE_INDEX_NAME
+    scope: RUN_AND_BUILD_TIME
+    type: SECRET
+  - key: PINECONE_INDEX_HOST
+    scope: RUN_AND_BUILD_TIME
+    type: SECRET
+  - key: PINECONE_ENVIRONMENT
+    scope: RUN_AND_BUILD_TIME
+    type: SECRET
+  - key: OPENAI_API_KEY
+    scope: RUN_AND_BUILD_TIME
+    type: SECRET
+  - key: LOG_LEVEL
+    value: info
+
+databases:
+- name: resilion-db
+  engine: PG
+  version: "14"
+  size: db-s-dev-database
+
+jobs:
+- name: db-migrate
+  source_dir: /
+  github:
+    repo: ori-project/resilion-enrichment-poc
+    branch: main
+  run_command: |
+    cd db && 
+    export PGPASSWORD=$DATABASE_PASSWORD && 
+    psql -h $DATABASE_HOST -p $DATABASE_PORT -U $DATABASE_USER -d $DATABASE_NAME -f schema.sql
+  environment_slug: node-js
+  instance_count: 1
+  instance_size_slug: basic-xxs
+  kind: PRE_DEPLOY
+  envs:
+  - key: DATABASE_URL
+    scope: RUN_TIME
+    type: SECRET
