@@ -27,9 +27,12 @@ export async function GET(request: NextRequest) {
           f.confidence_score,
           f.source_text,
           f.source_url,
-          f.status,
+          f.validated,
+          f.validation_notes,
+          f.embedding_id,
           f.created_at,
-          j.domain
+          j.domain,
+          j.status as job_status
         FROM enrichment_facts f
         JOIN enrichment_jobs j ON f.job_id = j.id
         WHERE j.domain = $1
