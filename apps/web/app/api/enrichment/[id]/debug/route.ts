@@ -43,28 +43,24 @@ export async function GET(
 
       // Get step-by-step breakdown using only existing tables
       const stepsQuery = `
-        SELECT 
-          'crawling' as step_name, crawling_status as status
-        FROM enrichment_jobs WHERE id = $1
-        UNION ALL
-        SELECT 
-          'chunking' as step_name, chunking_status as status
-        FROM enrichment_jobs WHERE id = $1
-        UNION ALL
-        SELECT 
-          'embedding' as step_name, embedding_status as status
-        FROM enrichment_jobs WHERE id = $1
-        UNION ALL
-        SELECT 
-          'extraction' as step_name, extraction_status as status
-        FROM enrichment_jobs WHERE id = $1
-        ORDER BY 
-          CASE step_name 
-            WHEN 'crawling' THEN 1
-            WHEN 'chunking' THEN 2
-            WHEN 'embedding' THEN 3
-            WHEN 'extraction' THEN 4
-          END
+        SELECT step_name, status FROM (
+          SELECT 
+            'crawling' as step_name, crawling_status as status, 1 as sort_order
+          FROM enrichment_jobs WHERE id = $1
+          UNION ALL
+          SELECT 
+            'chunking' as step_name, chunking_status as status, 2 as sort_order
+          FROM enrichment_jobs WHERE id = $1
+          UNION ALL
+          SELECT 
+            'embedding' as step_name, embedding_status as status, 3 as sort_order
+          FROM enrichment_jobs WHERE id = $1
+          UNION ALL
+          SELECT 
+            'extraction' as step_name, extraction_status as status, 4 as sort_order
+          FROM enrichment_jobs WHERE id = $1
+        ) steps
+        ORDER BY sort_order
       `;
 
       const stepsResult = await client.query(stepsQuery, [jobId]);
