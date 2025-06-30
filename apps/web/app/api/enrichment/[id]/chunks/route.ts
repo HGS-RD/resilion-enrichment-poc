@@ -123,6 +123,35 @@ export async function GET(
 
   } catch (error) {
     console.error('Chunks API error:', error);
+    
+    // Check if it's a table not found error
+    if (error instanceof Error && error.message.includes('relation "enrichment_chunks" does not exist')) {
+      // Return empty data structure for missing tables
+      return NextResponse.json({
+        chunks: [],
+        pagination: {
+          page: 1,
+          limit: 20,
+          total: 0,
+          totalPages: 0,
+          hasNext: false,
+          hasPrev: false
+        },
+        analytics: {
+          total_chunks: 0,
+          avg_content_length: 0,
+          max_content_length: 0,
+          min_content_length: 0,
+          avg_quality_score: 0,
+          unique_sources: 0,
+          high_quality_chunks: 0,
+          medium_quality_chunks: 0,
+          low_quality_chunks: 0
+        },
+        sources: []
+      });
+    }
+    
     return NextResponse.json(
       { error: 'Failed to fetch chunk information' },
       { status: 500 }

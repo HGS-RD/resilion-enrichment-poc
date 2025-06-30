@@ -309,10 +309,7 @@ export function useEnrichmentJobs(): UseEnrichmentJobsReturn {
       }
 
       if (data.success) {
-        // Remove job from local state
-        setJobs(currentJobs => currentJobs.filter(job => job.id !== jobId))
-        
-        // Refresh stats after deletion
+        // Refresh jobs list after deletion
         await refreshJobs()
         
         return true

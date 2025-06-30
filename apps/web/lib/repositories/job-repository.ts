@@ -21,7 +21,7 @@ export class JobRepository implements IJobRepository {
   /**
    * Creates a new enrichment job
    */
-  async create(domain: string, metadata: Record<string, any> = {}): Promise<EnrichmentJob> {
+  async create(domain: string, metadata: Record<string, any> = {}, llmUsed?: string): Promise<EnrichmentJob> {
     const client = await this.pool.connect();
     
     try {
@@ -30,16 +30,18 @@ export class JobRepository implements IJobRepository {
           domain, status, retry_count, metadata,
           crawling_status, chunking_status, embedding_status, extraction_status,
           pages_crawled, chunks_created, embeddings_generated, facts_extracted,
+          llm_used, pages_scraped, total_runtime_seconds,
           created_at, updated_at
         ) VALUES (
           $1, 'pending', 0, $2,
           'pending', 'pending', 'pending', 'pending',
           0, 0, 0, 0,
+          $3, 0, 0,
           NOW(), NOW()
         ) RETURNING *
       `;
       
-      const result = await client.query(query, [domain, JSON.stringify(metadata)]);
+      const result = await client.query(query, [domain, JSON.stringify(metadata), llmUsed]);
       const row = result.rows[0];
       
       return this.mapRowToJob(row);
@@ -271,6 +273,105 @@ export class JobRepository implements IJobRepository {
   }
 
   /**
+   * Updates LLM used for a job
+   */
+  async updateLLMUsed(id: string, llmUsed: string): Promise<void> {
+    const client = await this.pool.connect();
+    
+    try {
+      const query = `
+        UPDATE enrichment_jobs 
+        SET llm_used = $2, updated_at = NOW()
+        WHERE id = $1
+      `;
+      
+      await client.query(query, [id, llmUsed]);
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * Updates pages scraped count
+   */
+  async updatePagesScraped(id: string, pagesScraped: number): Promise<void> {
+    const client = await this.pool.connect();
+    
+    try {
+      const query = `
+        UPDATE enrichment_jobs 
+        SET pages_scraped = $2, updated_at = NOW()
+        WHERE id = $1
+      `;
+      
+      await client.query(query, [id, pagesScraped]);
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * Updates total runtime in seconds
+   */
+  async updateTotalRuntime(id: string, runtimeSeconds: number): Promise<void> {
+    const client = await this.pool.connect();
+    
+    try {
+      const query = `
+        UPDATE enrichment_jobs 
+        SET total_runtime_seconds = $2, updated_at = NOW()
+        WHERE id = $1
+      `;
+      
+      await client.query(query, [id, runtimeSeconds]);
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * Updates multiple Milestone 1 fields at once
+   */
+  async updateMilestone1Fields(
+    id: string, 
+    fields: {
+      llm_used?: string;
+      pages_scraped?: number;
+      total_runtime_seconds?: number;
+    }
+  ): Promise<void> {
+    const client = await this.pool.connect();
+    
+    try {
+      const updates: string[] = ['updated_at = NOW()'];
+      const values: any[] = [id];
+      let paramIndex = 2;
+      
+      for (const [key, value] of Object.entries(fields)) {
+        if (value !== undefined) {
+          updates.push(`${key} = $${paramIndex}`);
+          values.push(value);
+          paramIndex++;
+        }
+      }
+      
+      if (updates.length === 1) {
+        return; // No updates to make
+      }
+      
+      const query = `
+        UPDATE enrichment_jobs 
+        SET ${updates.join(', ')}
+        WHERE id = $1
+      `;
+      
+      await client.query(query, values);
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
    * Gets jobs by status
    */
   async findByStatus(status: JobStatus, limit: number = 100): Promise<EnrichmentJob[]> {
@@ -413,6 +514,11 @@ export class JobRepository implements IJobRepository {
       chunks_created: row.chunks_created,
       embeddings_generated: row.embeddings_generated,
       facts_extracted: row.facts_extracted,
+      
+      // Milestone 1 additions
+      llm_used: row.llm_used,
+      pages_scraped: row.pages_scraped || 0,
+      total_runtime_seconds: row.total_runtime_seconds || 0,
     };
   }
 

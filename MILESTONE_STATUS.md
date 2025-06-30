@@ -295,8 +295,92 @@ Milestone 5 is complete and the application is ready for production deployment. 
 
 ---
 
+---
+
+## Milestone 6: Database Schema Extension for LLM & Tiered Enrichment ✅ COMPLETED
+
+**Status**: COMPLETED  
+**Branch**: feature/milestone-1-schema-extension  
+**Completion Date**: 2025-06-30
+
+### Completed Tasks:
+- ✅ Extended enrichment_jobs table with LLM tracking fields (llm_used, pages_scraped, total_runtime_seconds)
+- ✅ Extended enrichment_facts table with tier tracking (tier_used with 1-3 constraint)
+- ✅ Updated TypeScript interfaces to match new schema with comprehensive type definitions
+- ✅ Updated repository classes with new field support and tier-based queries
+- ✅ Created and executed database migration scripts on production database
+- ✅ Comprehensive testing of schema changes with validation of all new functionality
+
+### Key Components Delivered:
+
+#### 1. Database Schema Extensions
+- **enrichment_jobs**: Added `llm_used` (VARCHAR(50)), `pages_scraped` (INTEGER), `total_runtime_seconds` (INTEGER)
+- **enrichment_facts**: Added `tier_used` (INTEGER with CHECK constraint 1-3)
+- **Updated constraints**: Enhanced status constraint to include 'partial_success'
+- **Performance indexes**: Added indexes on llm_used and tier_used for analytics
+
+#### 2. Enhanced TypeScript Types (`apps/web/lib/types/enrichment.ts`)
+- **LLM Selection Types**: LLMProvider, LLMModel, LLMConfig for multi-provider support
+- **Tiered Enrichment Types**: TierConfig, EnrichmentTiers, TierResult for structured tier management
+- **Job Configuration**: EnrichmentJobConfig, EnrichmentJobResult for comprehensive job management
+- **Enhanced Interfaces**: Updated EnrichmentJob and EnrichmentFact with new fields
+
+#### 3. Repository Enhancements
+- **JobRepository**: Added updateLLMUsed(), updatePagesScraped(), updateTotalRuntime(), updateMilestone1Fields()
+- **FactRepository**: Added findByTier(), getTierStatistics(), enhanced create methods with tier support
+- **Database Integration**: Full support for new fields with proper mapping and validation
+
+#### 4. Migration & Testing Infrastructure
+- **Migration Scripts**: Multiple approaches tested, final working migration applied to production
+- **Schema Validation**: Comprehensive database schema verification scripts
+- **Testing Suite**: Complete database functionality testing with constraint validation
+
+### Technical Implementation:
+
+#### Database Design:
+- **LLM Tracking**: Full support for tracking which LLM model was used for each job
+- **Tier Management**: Structured tier tracking (1=Corporate, 2=LinkedIn/Jobs, 3=News) with constraints
+- **Performance Optimization**: Strategic indexing for analytics and tier-based queries
+- **Data Integrity**: Proper constraints and validation at database level
+
+#### Type Safety:
+- **Comprehensive Types**: Full TypeScript coverage for all new functionality
+- **Provider Support**: Ready for OpenAI, Anthropic, and Google LLM providers
+- **Configuration Management**: Structured configuration types for tiers and LLM settings
+
+#### Repository Pattern:
+- **Enhanced CRUD**: Full support for new fields in create, read, update operations
+- **Analytics Support**: Tier statistics and LLM usage analytics capabilities
+- **Batch Operations**: Efficient batch processing with tier information
+
+### Testing Status:
+- ✅ Database schema validation completed
+- ✅ All new fields and constraints tested
+- ✅ Repository methods validated with real database operations
+- ✅ Tier constraint validation (rejects invalid tier values)
+- ✅ LLM tracking functionality verified
+- ✅ Partial success status support confirmed
+
+### Migration Results:
+Successfully applied to production database:
+- enrichment_jobs: llm_used, pages_scraped, total_runtime_seconds columns added
+- enrichment_facts: tier_used column added with proper constraints
+- Indexes created for performance optimization
+- Sample data populated with default values
+- All existing functionality preserved
+
+### Next Steps:
+The database foundation is now ready for Milestone 7 implementation:
+1. **LLM Integration Service**: Multi-provider LLM service implementation
+2. **Tiered Enrichment Engine**: Implement tier-based enrichment logic with confidence thresholds
+3. **Frontend LLM Selection**: UI components for LLM model selection
+4. **Enhanced Monitoring**: Tier-based progress tracking and analytics
+5. **Configuration Management**: Runtime configuration for tiers and LLM settings
+
+---
+
 ## Overall Project Status: 
-**5/5 Core Milestones Complete** - Full integration and deployment ready! 🎉
+**6/6 Core Milestones Complete** - Enhanced with LLM & Tiered Enrichment Foundation! 🎉
 
 **Project Summary:**
 - ✅ Milestone 1: Foundation & Setup
@@ -304,5 +388,6 @@ Milestone 5 is complete and the application is ready for production deployment. 
 - ✅ Milestone 3: AI-Powered Extraction
 - ✅ Milestone 4: Frontend Implementation
 - ✅ Milestone 5: Integration, Testing & Deployment
+- ✅ Milestone 6: Database Schema Extension for LLM & Tiered Enrichment
 
-The Resilion Enrichment Pre-Loader POC is now complete and ready for production deployment on DigitalOcean App Platform.
+The Resilion Enrichment Pre-Loader POC is now complete with enhanced database schema ready for advanced LLM selection and tiered enrichment capabilities.

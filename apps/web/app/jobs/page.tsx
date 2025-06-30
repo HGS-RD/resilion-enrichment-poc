@@ -384,10 +384,12 @@ export default function JobsPage() {
               </Card>
 
               {/* Developer Observatory - Full Width Below Jobs Table */}
-              <DeveloperObservatory 
-                selectedJobId={selectedJobId || undefined}
-                className="w-full"
-              />
+              {selectedJobId && (
+                <DeveloperObservatory 
+                  selectedJobId={selectedJobId}
+                  className="w-full"
+                />
+              )}
             </div>
           </div>
         </TabsContent>

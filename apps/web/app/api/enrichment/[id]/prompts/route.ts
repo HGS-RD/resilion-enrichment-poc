@@ -117,6 +117,33 @@ export async function GET(
 
   } catch (error) {
     console.error('Prompts API error:', error);
+    
+    // Check if it's a table not found error
+    if (error instanceof Error && error.message.includes('relation "enrichment_prompts" does not exist')) {
+      // Return empty data structure for missing tables
+      return NextResponse.json({
+        prompts: [],
+        pagination: {
+          page: 1,
+          limit: 20,
+          total: 0,
+          totalPages: 0,
+          hasNext: false,
+          hasPrev: false
+        },
+        analytics: {
+          total_prompts: 0,
+          avg_prompt_length: 0,
+          avg_response_length: 0,
+          avg_processing_time: 0,
+          success_rate: 0,
+          unique_models: 0,
+          total_tokens_used: 0
+        },
+        models: []
+      });
+    }
+    
     return NextResponse.json(
       { error: 'Failed to fetch prompt information' },
       { status: 500 }

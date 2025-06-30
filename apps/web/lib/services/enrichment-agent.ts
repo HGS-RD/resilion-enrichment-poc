@@ -66,8 +66,20 @@ export class EnrichmentAgent {
         };
       }
 
-      // Update job status to completed
-      await this.jobRepository.updateStatus(jobId, 'completed');
+      // Update job with final context results
+      const finalJob = await this.jobRepository.findById(jobId);
+      if (finalJob) {
+        const finalStatus = finalContext.error ? 'failed' : 'completed';
+        await this.jobRepository.updateStatus(jobId, finalStatus);
+
+        // Log final results
+        await this.jobRepository.updateProgress(jobId, {
+          pages_crawled: (finalContext.crawled_pages ?? []).length,
+          chunks_created: (finalContext.text_chunks ?? []).length,
+          embeddings_generated: (finalContext.embeddings ?? []).length,
+          facts_extracted: (finalContext.extracted_facts ?? []).length,
+        });
+      }
 
       // Get final job state
       const completedJob = await this.jobRepository.findById(jobId);

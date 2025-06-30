@@ -168,6 +168,31 @@ export async function GET(
 
   } catch (error) {
     console.error('Debug API error:', error);
+    
+    // Check if it's a table not found error
+    if (error instanceof Error && error.message.includes('does not exist')) {
+      // Return empty data structure for missing tables
+      return NextResponse.json({
+        logs: [],
+        performance: {
+          total_processing_time: 0,
+          avg_step_time: 0,
+          slowest_step: null,
+          fastest_step: null,
+          memory_usage: 0,
+          cpu_usage: 0
+        },
+        errors: [],
+        warnings: [],
+        system_info: {
+          node_version: process.version,
+          platform: process.platform,
+          memory: process.memoryUsage(),
+          uptime: process.uptime()
+        }
+      });
+    }
+    
     return NextResponse.json(
       { error: 'Failed to fetch debug information' },
       { status: 500 }

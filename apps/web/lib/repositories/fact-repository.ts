@@ -28,9 +28,10 @@ export class FactRepository implements IFactRepository {
       const query = `
         INSERT INTO enrichment_facts (
           job_id, fact_type, fact_data, confidence_score,
-          source_url, source_text, embedding_id, validated, validation_notes
+          source_url, source_text, embedding_id, validated, validation_notes,
+          tier_used
         ) VALUES (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
         ) RETURNING *
       `;
       
@@ -43,7 +44,8 @@ export class FactRepository implements IFactRepository {
         fact.source_text,
         fact.embedding_id,
         fact.validated,
-        fact.validation_notes
+        fact.validation_notes,
+        fact.tier_used
       ];
       
       const result = await client.query(query, values);
@@ -74,9 +76,10 @@ export class FactRepository implements IFactRepository {
         const query = `
           INSERT INTO enrichment_facts (
             job_id, fact_type, fact_data, confidence_score,
-            source_url, source_text, embedding_id, validated, validation_notes
+            source_url, source_text, embedding_id, validated, validation_notes,
+            tier_used
           ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
           ) RETURNING *
         `;
         
@@ -89,7 +92,8 @@ export class FactRepository implements IFactRepository {
           fact.source_text,
           fact.embedding_id,
           fact.validated,
-          fact.validation_notes
+          fact.validation_notes,
+          fact.tier_used
         ];
         
         const result = await client.query(query, values);
@@ -289,6 +293,67 @@ export class FactRepository implements IFactRepository {
   }
 
   /**
+   * Finds facts by tier
+   */
+  async findByTier(tier: number, limit: number = 100): Promise<EnrichmentFact[]> {
+    const client = await this.pool.connect();
+    
+    try {
+      const query = `
+        SELECT * FROM enrichment_facts 
+        WHERE tier_used = $1 
+        ORDER BY confidence_score DESC, created_at DESC
+        LIMIT $2
+      `;
+      const result = await client.query(query, [tier, limit]);
+      
+      return result.rows.map(row => this.mapRowToFact(row));
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * Gets tier statistics for a job
+   */
+  async getTierStatistics(jobId: string): Promise<{
+    tier_distribution: Record<number, number>;
+    tier_confidence: Record<number, number>;
+  }> {
+    const client = await this.pool.connect();
+    
+    try {
+      const query = `
+        SELECT 
+          tier_used,
+          COUNT(*) as count,
+          AVG(confidence_score) as avg_confidence
+        FROM enrichment_facts 
+        WHERE job_id = $1 AND tier_used IS NOT NULL
+        GROUP BY tier_used
+        ORDER BY tier_used
+      `;
+      const result = await client.query(query, [jobId]);
+      
+      const tier_distribution: Record<number, number> = {};
+      const tier_confidence: Record<number, number> = {};
+      
+      for (const row of result.rows) {
+        const tier = parseInt(row.tier_used);
+        tier_distribution[tier] = parseInt(row.count);
+        tier_confidence[tier] = parseFloat(row.avg_confidence) || 0;
+      }
+      
+      return {
+        tier_distribution,
+        tier_confidence
+      };
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
    * Maps database row to EnrichmentFact object
    */
   private mapRowToFact(row: any): EnrichmentFact {
@@ -303,7 +368,10 @@ export class FactRepository implements IFactRepository {
       embedding_id: row.embedding_id,
       created_at: row.created_at.toISOString(),
       validated: row.validated,
-      validation_notes: row.validation_notes
+      validation_notes: row.validation_notes,
+      
+      // Milestone 1 additions
+      tier_used: row.tier_used
     };
   }
 

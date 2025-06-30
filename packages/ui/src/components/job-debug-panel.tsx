@@ -195,7 +195,7 @@ export function JobDebugPanel({ jobId, isOpen, onClose }: JobDebugPanelProps) {
           <DialogTitle className="flex items-center gap-2">
             <Code2 className="h-5 w-5" />
             Job Debug Panel
-            {debugData && (
+            {debugData && debugData.job && (
               <Badge variant="outline" className="ml-2">
                 {debugData.job.domain}
               </Badge>
@@ -224,7 +224,7 @@ export function JobDebugPanel({ jobId, isOpen, onClose }: JobDebugPanelProps) {
               <div className="flex-1 overflow-hidden">
                 <TabsContent value="overview" className="h-full">
                   <ScrollArea className="h-full">
-                    {debugData && (
+                    {debugData && debugData.job && (
                       <div className="space-y-6 p-1">
                         {/* Job Summary */}
                         <Card>

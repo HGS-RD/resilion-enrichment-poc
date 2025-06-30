@@ -28,9 +28,14 @@ export interface EnrichmentJob {
   chunks_created: number;
   embeddings_generated: number;
   facts_extracted: number;
+  
+  // Milestone 1 additions
+  llm_used?: string;                    // LLM model used for this job
+  pages_scraped: number;                // Total pages scraped across all tiers
+  total_runtime_seconds: number;        // Total runtime in seconds
 }
 
-export type JobStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+export type JobStatus = 'pending' | 'running' | 'completed' | 'partial_success' | 'failed' | 'cancelled';
 export type StepStatus = 'pending' | 'running' | 'completed' | 'failed';
 
 export interface EnrichmentFact {
@@ -45,6 +50,9 @@ export interface EnrichmentFact {
   created_at: string;
   validated: boolean;
   validation_notes?: string;
+  
+  // Milestone 1 additions
+  tier_used?: number;                   // Tier (1-3) from which this fact was extracted
 }
 
 export interface CrawledPage {
@@ -143,4 +151,63 @@ export interface ExtractionConfig {
   temperature: number;
   max_tokens: number;
   confidence_threshold: number;
+}
+
+// Milestone 1: LLM Selection and Tiered Enrichment Types
+export type LLMProvider = 'openai' | 'anthropic' | 'google';
+export type LLMModel = 'gpt-4o' | 'gpt-4o-mini' | 'claude-3-5-sonnet' | 'claude-3-haiku' | 'gemini-1.5-pro' | 'gemini-1.5-flash';
+
+export interface LLMConfig {
+  provider: LLMProvider;
+  model: LLMModel;
+  temperature: number;
+  max_tokens: number;
+  timeout_ms: number;
+}
+
+export interface TierConfig {
+  tier: 1 | 2 | 3;
+  name: string;
+  sources: string[];
+  max_pages: number;
+  confidence_threshold: number;
+  timeout_minutes: number;
+}
+
+export interface EnrichmentTiers {
+  tier1: TierConfig;  // Corporate website, press releases, SEC filings
+  tier2: TierConfig;  // LinkedIn company page, job postings
+  tier3: TierConfig;  // News articles from reputable outlets
+}
+
+export interface EnrichmentJobConfig {
+  llm: LLMConfig;
+  tiers: EnrichmentTiers;
+  max_total_runtime_minutes: number;
+  max_retries: number;
+  stop_on_confidence_threshold: boolean;
+  global_confidence_threshold: number;
+}
+
+export interface TierResult {
+  tier: number;
+  sources_attempted: string[];
+  pages_scraped: number;
+  facts_extracted: number;
+  average_confidence: number;
+  runtime_seconds: number;
+  status: 'completed' | 'partial' | 'failed' | 'timeout';
+  error_message?: string;
+}
+
+export interface EnrichmentJobResult {
+  job_id: string;
+  total_runtime_seconds: number;
+  tiers_completed: TierResult[];
+  final_status: JobStatus;
+  total_facts_extracted: number;
+  average_confidence: number;
+  llm_used: string;
+  stopped_early: boolean;
+  stop_reason?: 'confidence_threshold_met' | 'timeout' | 'max_retries' | 'error';
 }
