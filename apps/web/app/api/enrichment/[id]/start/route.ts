@@ -11,10 +11,11 @@ import { EnrichmentAgent } from '../../../../../lib/services/enrichment-agent';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const jobId = params.id;
+    const { id } = await params;
+    const jobId = id;
 
     if (!jobId) {
       return NextResponse.json({

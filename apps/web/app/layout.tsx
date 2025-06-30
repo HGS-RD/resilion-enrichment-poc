@@ -26,7 +26,7 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <div className="flex min-h-screen bg-gray-50">
+          <div className="flex min-h-screen bg-background text-foreground">
             <Navigation />
             <main className="flex-1">
               {children}

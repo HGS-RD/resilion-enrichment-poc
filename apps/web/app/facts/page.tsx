@@ -122,15 +122,15 @@ export default function FactsPage() {
   }
 
   const getConfidenceColor = (confidence: number) => {
-    if (confidence >= 90) return "bg-green-500"
-    if (confidence >= 70) return "bg-yellow-500"
-    return "bg-red-500"
+    if (confidence >= 90) return "bg-success"
+    if (confidence >= 70) return "bg-warning"
+    return "bg-destructive"
   }
 
   const getConfidenceTextColor = (confidence: number) => {
-    if (confidence >= 90) return "text-green-700"
-    if (confidence >= 70) return "text-yellow-700"
-    return "text-red-700"
+    if (confidence >= 90) return "text-success"
+    if (confidence >= 70) return "text-warning"
+    return "text-destructive"
   }
 
   const formatFactType = (factType: string) => {
@@ -146,18 +146,18 @@ export default function FactsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
             <span>Dashboard</span>
             <span>/</span>
             <span>Enrichment Jobs</span>
             <span>/</span>
             <span>Facts</span>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Fact Viewer</h1>
+          <h1 className="text-3xl font-bold text-foreground tracking-tight">Fact Viewer</h1>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
             <Input
               placeholder="Search facts..."
               value={searchTerm}
@@ -165,7 +165,7 @@ export default function FactsPage() {
               className="pl-10 w-64"
             />
           </div>
-          <Button variant="ghost" size="sm">
+          <Button variant="ghost" size="sm" className="h-9 w-9">
             <Bell className="h-4 w-4" />
           </Button>
         </div>
@@ -200,7 +200,7 @@ export default function FactsPage() {
             )}
           </div>
           {completedJobs.length === 0 && (
-            <p className="text-sm text-gray-500 mt-2">
+            <p className="text-sm text-muted-foreground mt-2">
               No completed jobs with facts found. Run some enrichment jobs first.
             </p>
           )}
@@ -209,13 +209,13 @@ export default function FactsPage() {
 
       {/* Job Info Header */}
       {selectedJob && (
-        <div className="flex items-center justify-between bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+        <div className="flex items-center justify-between bg-muted/50 p-4 rounded-lg border">
           <div>
-            <h2 className="text-lg font-semibold">{selectedJob.domain}</h2>
-            <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
+            <h2 className="text-lg font-semibold text-foreground">{selectedJob.domain}</h2>
+            <div className="flex items-center gap-4 text-sm text-muted-foreground">
               <span>Job ID: {selectedJob.id}</span>
               <span>•</span>
-              <Badge variant="secondary" className="bg-green-100 text-green-800">
+              <Badge className="bg-success/10 text-success border-success/20">
                 {selectedJob.status}
               </Badge>
               <span>•</span>
@@ -231,8 +231,8 @@ export default function FactsPage() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-center py-8">
               <div className="text-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                <p className="text-gray-600">Loading facts...</p>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                <p className="text-muted-foreground">Loading facts...</p>
               </div>
             </div>
           </CardContent>
@@ -241,9 +241,9 @@ export default function FactsPage() {
 
       {/* Error State */}
       {error && (
-        <Card className="border-red-200 bg-red-50">
+        <Card className="border-destructive/50 bg-destructive/5">
           <CardContent className="pt-6">
-            <div className="flex items-center gap-2 text-red-800">
+            <div className="flex items-center gap-2 text-destructive">
               <AlertCircle className="h-4 w-4" />
               <span className="font-medium">Error:</span>
               <span>{error}</span>
@@ -257,9 +257,9 @@ export default function FactsPage() {
         <Card>
           <CardContent className="pt-6">
             <div className="text-center py-8">
-              <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No Facts Found</h3>
-              <p className="text-gray-600">
+              <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-foreground mb-2">No Facts Found</h3>
+              <p className="text-muted-foreground">
                 No facts were extracted for {selectedDomain}. The enrichment process may have failed or found no extractable information.
               </p>
             </div>
@@ -275,14 +275,14 @@ export default function FactsPage() {
             <CardHeader className="flex flex-row items-center justify-between">
               <div className="flex items-center gap-3">
                 <CardTitle className="text-xl">{formatFactType(selectedFact.fact_type)}</CardTitle>
-                <Badge variant="outline" className="text-blue-600 border-blue-200">
+                <Badge variant="outline" className="text-primary border-primary/20">
                   {selectedFact.fact_type}
                 </Badge>
               </div>
               <div className="flex items-center gap-2">
                 <Button 
                   onClick={() => handleApprove(selectedFact.id)}
-                  className="bg-green-600 hover:bg-green-700"
+                  className="bg-success hover:bg-success/90 text-success-foreground"
                 >
                   <Check className="h-4 w-4 mr-2" />
                   Approve
@@ -315,12 +315,12 @@ export default function FactsPage() {
                 {/* Evidence Text */}
                 <div>
                   <h3 className="text-lg font-semibold mb-3">Evidence Text</h3>
-                  <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
-                    <p className="text-sm leading-relaxed mb-4">
+                  <div className="bg-muted/50 p-4 rounded-lg border">
+                    <p className="text-sm leading-relaxed mb-4 text-foreground">
                       {selectedFact.source_text}
                     </p>
                     {selectedFact.source_url && (
-                      <div className="flex items-center gap-2 text-sm text-blue-600">
+                      <div className="flex items-center gap-2 text-sm text-primary">
                         <ExternalLink className="h-3 w-3" />
                         <a 
                           href={selectedFact.source_url} 
@@ -343,7 +343,7 @@ export default function FactsPage() {
                       variant="ghost"
                       size="sm"
                       onClick={() => setIsJsonExpanded(!isJsonExpanded)}
-                      className="text-blue-600"
+                      className="text-primary"
                     >
                       {isJsonExpanded ? (
                         <>
@@ -383,21 +383,21 @@ export default function FactsPage() {
                     key={fact.id}
                     className={`p-3 rounded-lg border cursor-pointer transition-colors ${
                       selectedFact.id === fact.id 
-                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/20' 
-                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+                        ? 'border-primary bg-primary/5' 
+                        : 'border-border hover:border-border/80 hover:bg-muted/50'
                     }`}
                     onClick={() => setSelectedFact(fact)}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="font-medium">{formatFactType(fact.fact_type)}</div>
+                        <div className="font-medium text-foreground">{formatFactType(fact.fact_type)}</div>
                         <Badge variant="outline" className="text-xs">
                           {fact.fact_type}
                         </Badge>
                       </div>
                       <div className="flex items-center gap-2">
                         <div className={`w-2 h-2 rounded-full ${getConfidenceColor(Math.round(fact.confidence_score * 100))}`} />
-                        <span className="text-sm text-gray-600">{Math.round(fact.confidence_score * 100)}%</span>
+                        <span className="text-sm text-muted-foreground">{Math.round(fact.confidence_score * 100)}%</span>
                       </div>
                     </div>
                   </div>

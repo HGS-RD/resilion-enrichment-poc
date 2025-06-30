@@ -5,10 +5,11 @@ const jobRepository = new JobRepository()
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const job = await jobRepository.findById(params.id)
+    const { id } = await params
+    const job = await jobRepository.findById(id)
     
     if (!job) {
       return NextResponse.json(
@@ -32,10 +33,11 @@ export async function GET(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const jobId = params.id
+    const { id } = await params
+    const jobId = id
 
     // Check if job exists
     const existingJob = await jobRepository.findById(jobId)

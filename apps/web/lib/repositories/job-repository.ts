@@ -14,7 +14,7 @@ export class JobRepository implements IJobRepository {
   constructor() {
     this.pool = new Pool({
       connectionString: process.env.DATABASE_URL,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+      ssl: process.env.DATABASE_URL?.includes('sslmode=require') ? { rejectUnauthorized: false } : false,
     });
   }
 
@@ -318,37 +318,67 @@ export class JobRepository implements IJobRepository {
     const client = await this.pool.connect();
     
     try {
-      await client.query('BEGIN');
+      // Helper function to safely delete from a table outside of transaction
+      const safeDelete = async (tableName: string, whereClause: string, params: any[]) => {
+        try {
+          // Check if table exists first
+          const tableExistsQuery = `
+            SELECT EXISTS (
+              SELECT FROM information_schema.tables 
+              WHERE table_schema = 'public' 
+              AND table_name = $1
+            )
+          `;
+          const tableExistsResult = await client.query(tableExistsQuery, [tableName]);
+          
+          if (!tableExistsResult.rows[0].exists) {
+            console.log(`${tableName} table not found, skipping...`);
+            return 0;
+          }
+
+          const result = await client.query(`DELETE FROM ${tableName} WHERE ${whereClause}`, params);
+          console.log(`Deleted ${result.rowCount || 0} rows from ${tableName}`);
+          return result.rowCount || 0;
+        } catch (e: any) {
+          console.warn(`Warning: Failed to delete from ${tableName}:`, e.message);
+          return 0;
+        }
+      };
 
       // Delete from related tables first (to maintain referential integrity)
+      // Do these outside of transaction to avoid transaction abort issues
       
       // Delete job logs
-      await client.query('DELETE FROM job_logs WHERE job_id = $1', [id]);
+      await safeDelete('job_logs', 'job_id = $1', [id]);
       
       // Delete from failed_jobs table
-      await client.query('DELETE FROM failed_jobs WHERE original_job_id = $1', [id]);
+      await safeDelete('failed_jobs', 'original_job_id = $1', [id]);
       
       // Delete facts associated with this job
-      await client.query('DELETE FROM facts WHERE job_id = $1', [id]);
+      await safeDelete('enrichment_facts', 'job_id = $1', [id]);
       
-      // Delete text chunks associated with this job
-      await client.query('DELETE FROM text_chunks WHERE job_id = $1', [id]);
+      // Delete any developer observability tables if they exist
+      await safeDelete('enrichment_chunks', 'job_id = $1', [id]);
+      await safeDelete('enrichment_embeddings', 'job_id = $1', [id]);
+      await safeDelete('enrichment_debug_logs', 'job_id = $1', [id]);
+      await safeDelete('enrichment_prompts', 'job_id = $1', [id]);
+      await safeDelete('enrichment_model_responses', 'job_id = $1', [id]);
+      await safeDelete('enrichment_performance_metrics', 'job_id = $1', [id]);
       
-      // Delete crawled pages associated with this job
-      await client.query('DELETE FROM crawled_pages WHERE job_id = $1', [id]);
-      
-      // Delete embeddings associated with this job
-      await client.query('DELETE FROM embeddings WHERE job_id = $1', [id]);
-      
-      // Finally, delete the main job record
+      // Finally, delete the main job record in a simple transaction
+      await client.query('BEGIN');
       const result = await client.query('DELETE FROM enrichment_jobs WHERE id = $1', [id]);
-      
+      console.log(`Deleted main job record: ${result.rowCount || 0} rows`);
       await client.query('COMMIT');
       
       // Return true if a row was deleted
       return (result.rowCount ?? 0) > 0;
     } catch (error) {
-      await client.query('ROLLBACK');
+      try {
+        await client.query('ROLLBACK');
+      } catch (rollbackError) {
+        // Ignore rollback errors
+      }
       console.error('Failed to delete job:', error);
       throw error;
     } finally {

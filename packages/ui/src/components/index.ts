@@ -22,6 +22,12 @@ export * from "./workflow-progress"
 export * from "./enrichment-trend-chart"
 export * from "./command-menu"
 export * from "./top-errors-block"
+export * from "./job-debug-panel"
+export * from "./live-metrics-panel"
+export * from "./activity-feed-panel"
+export * from "./data-flow-panel"
+export * from "./debug-console-panel"
+export * from "./developer-observatory"
 
 // Export hooks
 export * from "../hooks/use-enrichment-jobs"

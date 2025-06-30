@@ -47,12 +47,12 @@ export default function DashboardPage() {
       {/* Header with breadcrumb */}
       <div className="flex items-center justify-between">
         <div>
-          <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
             <span>Dashboard</span>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
+          <h1 className="text-3xl font-bold text-foreground tracking-tight">Dashboard</h1>
         </div>
-        <Button variant="ghost" size="sm">
+        <Button variant="ghost" size="sm" className="h-9 w-9">
           <Bell className="h-4 w-4" />
         </Button>
       </div>
@@ -62,34 +62,34 @@ export default function DashboardPage() {
         <StatCard
           title="Total Jobs"
           value={stats.totalJobs.toLocaleString()}
-          icon={<Database className="h-4 w-4 text-blue-500" />}
+          icon={<Database className="h-4 w-4 text-primary" />}
           trend={{ value: 12, isPositive: true }}
           description="+12% this month"
-          className="bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800"
+          className="border-primary/20 bg-primary/5"
         />
         <StatCard
           title="Success Rate"
           value={`${stats.successRate}%`}
-          icon={<CheckCircle className="h-4 w-4 text-green-500" />}
+          icon={<CheckCircle className="h-4 w-4 text-success" />}
           trend={{ value: 2.1, isPositive: true }}
           description="+2.1% this week"
-          className="bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800"
+          className="border-success/20 bg-success/5"
         />
         <StatCard
           title="Avg Confidence"
           value={`${stats.avgConfidence}%`}
-          icon={<Target className="h-4 w-4 text-yellow-500" />}
+          icon={<Target className="h-4 w-4 text-warning" />}
           trend={{ value: -1.2, isPositive: false }}
           description="-1.2% this week"
-          className="bg-yellow-50 dark:bg-yellow-950/20 border-yellow-200 dark:border-yellow-800"
+          className="border-warning/20 bg-warning/5"
         />
         <StatCard
           title="Facts Found"
           value={stats.factsFound.toLocaleString()}
-          icon={<TrendingUp className="h-4 w-4 text-purple-500" />}
+          icon={<TrendingUp className="h-4 w-4 text-info" />}
           trend={{ value: 18, isPositive: true }}
           description="+18% this month"
-          className="bg-purple-50 dark:bg-purple-950/20 border-purple-200 dark:border-purple-800"
+          className="border-info/20 bg-info/5"
         />
       </div>
 
@@ -107,7 +107,7 @@ export default function DashboardPage() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Recent Enrichment Activity</CardTitle>
-          <Button variant="ghost" size="sm" className="text-blue-600">
+          <Button variant="ghost" size="sm" className="text-primary hover:text-primary/80">
             View All
           </Button>
         </CardHeader>
@@ -126,28 +126,28 @@ export default function DashboardPage() {
             </TableHeader>
             <TableBody>
               {recentJobs.map((job) => (
-                <TableRow key={job.id}>
-                  <TableCell className="font-mono text-sm">{job.id}</TableCell>
-                  <TableCell>{job.domain}</TableCell>
+                <TableRow key={job.id} className="hover:bg-muted/50">
+                  <TableCell className="font-mono text-sm text-muted-foreground">{job.id}</TableCell>
+                  <TableCell className="font-medium">{job.domain}</TableCell>
                   <TableCell>
-                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                      job.status === 'completed' ? 'bg-green-100 text-green-800' :
-                      job.status === 'running' ? 'bg-blue-100 text-blue-800' :
-                      job.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-red-100 text-red-800'
+                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                      job.status === 'completed' ? 'bg-success/10 text-success border border-success/20' :
+                      job.status === 'running' ? 'bg-info/10 text-info border border-info/20' :
+                      job.status === 'pending' ? 'bg-warning/10 text-warning border border-warning/20' :
+                      'bg-destructive/10 text-destructive border border-destructive/20'
                     }`}>
                       {job.status.charAt(0).toUpperCase() + job.status.slice(1)}
                     </span>
                   </TableCell>
-                  <TableCell className="text-sm text-gray-600">
+                  <TableCell className="text-sm text-muted-foreground">
                     {formatDateTime(job.startTime)}
                   </TableCell>
-                  <TableCell className="text-sm text-gray-600">
+                  <TableCell className="text-sm text-muted-foreground">
                     {job.endTime ? formatDateTime(job.endTime) : "-"}
                   </TableCell>
-                  <TableCell>{job.factsFound}</TableCell>
+                  <TableCell className="font-medium">{job.factsFound}</TableCell>
                   <TableCell>
-                    <Button variant="ghost" size="sm">
+                    <Button variant="ghost" size="sm" className="h-8 px-3">
                       View Details
                     </Button>
                   </TableCell>
