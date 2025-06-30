@@ -50,13 +50,7 @@ CREATE TABLE enrichment_facts (
     embedding_id VARCHAR(255), -- Pinecone vector ID
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     validated BOOLEAN DEFAULT FALSE,
-    validation_notes TEXT,
-    
-    -- Indexes for efficient querying
-    INDEX idx_enrichment_facts_job_id (job_id),
-    INDEX idx_enrichment_facts_type (fact_type),
-    INDEX idx_enrichment_facts_confidence (confidence_score DESC),
-    INDEX idx_enrichment_facts_created (created_at DESC)
+    validation_notes TEXT
 );
 
 -- Failed Jobs Table (Dead Letter Queue)
@@ -79,11 +73,7 @@ CREATE TABLE job_logs (
     level VARCHAR(20) NOT NULL DEFAULT 'info',
     message TEXT NOT NULL,
     details JSONB,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    
-    INDEX idx_job_logs_job_id (job_id),
-    INDEX idx_job_logs_level (level),
-    INDEX idx_job_logs_created (created_at DESC)
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Update trigger for enrichment_jobs

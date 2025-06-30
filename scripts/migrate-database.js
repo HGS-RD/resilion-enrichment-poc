@@ -68,7 +68,61 @@ async function runMigrations() {
     const schemaSql = fs.readFileSync(schemaPath, 'utf8');
 
     console.log('🚀 Executing database schema...');
-    await client.query(schemaSql);
+    
+    // Split SQL into individual statements, handling functions properly
+    const statements = [];
+    let currentStatement = '';
+    let inFunction = false;
+    
+    const lines = schemaSql.split('\n');
+    
+    for (const line of lines) {
+      const trimmedLine = line.trim();
+      
+      // Skip comments and empty lines
+      if (trimmedLine.startsWith('--') || trimmedLine === '') {
+        continue;
+      }
+      
+      currentStatement += line + '\n';
+      
+      // Check if we're entering a function
+      if (trimmedLine.includes('CREATE OR REPLACE FUNCTION') || trimmedLine.includes('CREATE FUNCTION')) {
+        inFunction = true;
+      }
+      
+      // Check if we're ending a function
+      if (inFunction && trimmedLine.includes('$$ language')) {
+        inFunction = false;
+        statements.push(currentStatement.trim());
+        currentStatement = '';
+        continue;
+      }
+      
+      // If not in a function and line ends with semicolon, it's a complete statement
+      if (!inFunction && trimmedLine.endsWith(';')) {
+        statements.push(currentStatement.trim());
+        currentStatement = '';
+      }
+    }
+    
+    // Add any remaining statement
+    if (currentStatement.trim()) {
+      statements.push(currentStatement.trim());
+    }
+    
+    for (let i = 0; i < statements.length; i++) {
+      const statement = statements[i];
+      if (statement) {
+        try {
+          await client.query(statement);
+          console.log(`   ✓ Executed statement ${i + 1}/${statements.length}`);
+        } catch (error) {
+          console.error(`   ❌ Failed on statement ${i + 1}: ${statement.substring(0, 100)}...`);
+          throw error;
+        }
+      }
+    }
 
     console.log('✅ Database migration completed successfully!');
     

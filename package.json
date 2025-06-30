@@ -31,7 +31,9 @@
     "validate:deployment": "node scripts/validate-deployment.js",
     "configure:digitalocean": "node scripts/configure-digitalocean-app.js",
     "migrate:database": "node scripts/migrate-database.js",
-    "fix:app-spec": "node scripts/fix-app-spec.js"
+    "fix:app-spec": "node scripts/fix-app-spec.js",
+    "get:prod-credentials": "node scripts/get-prod-credentials.js",
+    "test:db-connections": "node scripts/test-db-connections.js"
   },
   "devDependencies": {
     "@lhci/cli": "^0.12.0",

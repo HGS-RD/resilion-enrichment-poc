@@ -14,17 +14,21 @@ bash: line 1: turbo: command not found
 
 ## Solution
 
-### Manual Fix (Required)
+### Automated Fix (Latest)
+Created a build script to avoid command truncation issues:
+
+1. **build.sh** - Executable script that handles the build process
+2. **app.yaml** - Updated to use `./build.sh` as build command
+3. **Committed and pushed** - Changes are now in main branch
+
+### Manual Fix (If needed)
+If the automated fix doesn't work, manually update in DigitalOcean console:
 1. Go to the DigitalOcean App Platform console
 2. Navigate to your `pre-loader` app
 3. Go to Settings → Components → web
-4. Update the Build Command from:
+4. Update the Build Command to:
    ```
-   turbo build
-   ```
-   To:
-   ```
-   npm install && cd apps/web && npm install && npm run build
+   ./build.sh
    ```
 5. Save the configuration
 6. Trigger a new deployment

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { JobRepository } from '@/lib/repositories/job-repository';
-import { EnrichmentAgent } from '@/lib/services/enrichment-agent';
-import { validateDomain } from '@/lib/utils/domain-validator';
+import { JobRepository } from '../../../lib/repositories/job-repository';
+import { EnrichmentAgent } from '../../../lib/services/enrichment-agent';
+import { validateDomain } from '../../../lib/utils/domain-validator';
 
 /**
  * API Route: POST /api/enrichment
