@@ -2,7 +2,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "../../@workspace/ui/co
 import { Button } from "../../@workspace/ui/components/button"
 import { Badge } from "../../@workspace/ui/components/badge"
 import { Progress } from "../../@workspace/ui/components/progress"
-import { Check, X, ChevronDown, ChevronUp } from "lucide-react"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "../../@workspace/ui/components/accordion"
+import { Check, X, ChevronDown, ChevronUp, ExternalLink, Calendar, Database, Shield } from "lucide-react"
 import { useState } from "react"
 import { cn } from "../lib/utils"
 
@@ -10,9 +11,15 @@ interface FactCardProps {
   fact: {
     id: string
     type: string
-    value: string
+    value?: string
+    data: Record<string, any>
     confidence: number
     evidence: string
+    sourceUrl?: string
+    tier?: number
+    validated: boolean
+    validationNotes?: string
+    createdAt: string
     metadata?: Record<string, any>
   }
   onAccept?: (factId: string) => void
@@ -21,7 +28,6 @@ interface FactCardProps {
 }
 
 export function FactCard({ fact, onAccept, onReject, className }: FactCardProps) {
-  const [isExpanded, setIsExpanded] = useState(false)
   const [showJson, setShowJson] = useState(false)
 
   const getConfidenceColor = (confidence: number) => {
@@ -36,16 +42,76 @@ export function FactCard({ fact, onAccept, onReject, className }: FactCardProps)
     return "Low"
   }
 
+  const getTierColor = (tier: number) => {
+    switch (tier) {
+      case 1:
+        return "text-blue-600 bg-blue-50 border-blue-200"
+      case 2:
+        return "text-purple-600 bg-purple-50 border-purple-200"
+      case 3:
+        return "text-orange-600 bg-orange-50 border-orange-200"
+      default:
+        return "text-gray-600 bg-gray-50 border-gray-200"
+    }
+  }
+
+  const getTierLabel = (tier: number) => {
+    switch (tier) {
+      case 1:
+        return "Corporate"
+      case 2:
+        return "Professional"
+      case 3:
+        return "News"
+      default:
+        return "Unknown"
+    }
+  }
+
+  const formatDateTime = (dateString: string) => {
+    return new Date(dateString).toLocaleString()
+  }
+
+  // Extract main value from fact data
+  const getFactValue = () => {
+    if (fact.value) return fact.value
+    if (fact.data && typeof fact.data === 'object') {
+      // Try common value fields
+      const valueFields = ['value', 'name', 'title', 'description', 'content', 'text']
+      for (const field of valueFields) {
+        if (fact.data[field]) return fact.data[field]
+      }
+      // If no common field, return first string value
+      const firstStringValue = Object.values(fact.data).find(v => typeof v === 'string')
+      if (firstStringValue) return firstStringValue
+    }
+    return 'No value available'
+  }
+
   return (
     <Card className={cn("", className)}>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-base font-medium">
-            {fact.type}
-          </CardTitle>
-          <Badge variant="outline" className={getConfidenceColor(fact.confidence)}>
-            {getConfidenceLabel(fact.confidence)}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <CardTitle className="text-base font-medium">
+              {fact.type}
+            </CardTitle>
+            {fact.validated && (
+              <div className="flex items-center" title="Validated">
+                <Shield className="h-4 w-4 text-green-600" />
+              </div>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {fact.tier && (
+              <Badge variant="outline" className={getTierColor(fact.tier)}>
+                Tier {fact.tier}: {getTierLabel(fact.tier)}
+              </Badge>
+            )}
+            <Badge variant="outline" className={getConfidenceColor(fact.confidence)}>
+              {getConfidenceLabel(fact.confidence)}
+            </Badge>
+          </div>
         </div>
       </CardHeader>
       
@@ -53,7 +119,7 @@ export function FactCard({ fact, onAccept, onReject, className }: FactCardProps)
         {/* Fact Value */}
         <div>
           <label className="text-sm font-medium text-muted-foreground">Value</label>
-          <p className="text-sm mt-1">{fact.value}</p>
+          <p className="text-sm mt-1 font-medium">{getFactValue()}</p>
         </div>
 
         {/* Confidence Score */}
@@ -77,32 +143,74 @@ export function FactCard({ fact, onAccept, onReject, className }: FactCardProps)
           </div>
         </div>
 
-        {/* JSON Metadata (Collapsible) */}
-        {fact.metadata && (
+        {/* Source URL */}
+        {fact.sourceUrl && (
           <div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowJson(!showJson)}
-              className="h-8 p-0 text-muted-foreground hover:text-foreground"
-            >
-              {showJson ? (
-                <ChevronUp className="h-4 w-4 mr-1" />
-              ) : (
-                <ChevronDown className="h-4 w-4 mr-1" />
-              )}
-              {showJson ? "Hide" : "Show"} JSON Data
-            </Button>
-            
-            {showJson && (
-              <div className="mt-2 p-3 bg-gray-50 border rounded-md max-h-48 overflow-y-auto">
-                <pre className="text-xs font-mono text-gray-800">
-                  {JSON.stringify(fact.metadata, null, 2)}
-                </pre>
-              </div>
-            )}
+            <label className="text-sm font-medium text-muted-foreground">Source</label>
+            <div className="mt-1">
+              <a 
+                href={fact.sourceUrl} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 hover:underline"
+              >
+                <ExternalLink className="h-3 w-3" />
+                {fact.sourceUrl.length > 60 ? `${fact.sourceUrl.substring(0, 60)}...` : fact.sourceUrl}
+              </a>
+            </div>
           </div>
         )}
+
+        {/* Metadata and Details */}
+        <Accordion type="single" collapsible className="w-full">
+          <AccordionItem value="details" className="border-none">
+            <AccordionTrigger className="text-sm font-medium text-muted-foreground hover:text-foreground py-2">
+              <div className="flex items-center gap-2">
+                <Database className="h-4 w-4" />
+                View Details & Metadata
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="space-y-3 pt-2">
+              {/* Fact Data JSON */}
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">Fact Data</label>
+                <div className="mt-1 p-3 bg-gray-50 border rounded-md max-h-48 overflow-y-auto">
+                  <pre className="text-xs font-mono text-gray-800">
+                    {JSON.stringify(fact.data, null, 2)}
+                  </pre>
+                </div>
+              </div>
+
+              {/* Validation Notes */}
+              {fact.validationNotes && (
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Validation Notes</label>
+                  <p className="text-sm mt-1 text-gray-700">{fact.validationNotes}</p>
+                </div>
+              )}
+
+              {/* Timestamps */}
+              <div className="grid grid-cols-1 gap-2 text-xs text-muted-foreground">
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-3 w-3" />
+                  <span>Created: {formatDateTime(fact.createdAt)}</span>
+                </div>
+              </div>
+
+              {/* Additional Metadata */}
+              {fact.metadata && Object.keys(fact.metadata).length > 0 && (
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Additional Metadata</label>
+                  <div className="mt-1 p-3 bg-gray-50 border rounded-md max-h-48 overflow-y-auto">
+                    <pre className="text-xs font-mono text-gray-800">
+                      {JSON.stringify(fact.metadata, null, 2)}
+                    </pre>
+                  </div>
+                </div>
+              )}
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
 
         {/* Action Buttons */}
         {(onAccept || onReject) && (

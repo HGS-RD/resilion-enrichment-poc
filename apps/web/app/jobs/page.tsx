@@ -394,6 +394,10 @@ export default function JobsPage() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => window.open(`/jobs/${job.id}`, '_blank')}>
+                                  <FileText className="h-4 w-4 mr-2" />
+                                  View Details
+                                </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => handleSelectJob(job.id)}>
                                   <Eye className="h-4 w-4 mr-2" />
                                   Monitor Activity

@@ -1,4 +1,5 @@
 // Re-export shadcn/ui components
+export * from "../../@workspace/ui/components/accordion"
 export * from "../../@workspace/ui/components/badge"
 export * from "../../@workspace/ui/components/button"
 export * from "../../@workspace/ui/components/card"
@@ -28,6 +29,7 @@ export * from "./activity-feed-panel"
 export * from "./data-flow-panel"
 export * from "./debug-console-panel"
 export * from "./developer-observatory"
+export * from "./mermaid-workflow"
 
 // Export hooks
 export * from "../hooks/use-enrichment-jobs"
