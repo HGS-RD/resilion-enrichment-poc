@@ -3,8 +3,42 @@
 import React from "react"
 import ReactECharts from "echarts-for-react"
 import { Card, CardContent, CardHeader, CardTitle } from "../../@workspace/ui/components/card"
+import { useEnrichmentJobs } from "../hooks/use-enrichment-jobs"
 
 export function EnrichmentTrendChart() {
+  const { jobs } = useEnrichmentJobs()
+  
+  // Generate trend data from real jobs
+  const generateTrendData = () => {
+    const now = new Date()
+    const months = []
+    const totalJobsData = []
+    const successfulJobsData = []
+    
+    // Get last 6 months
+    for (let i = 5; i >= 0; i--) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1)
+      const monthName = date.toLocaleDateString('en-US', { month: 'long' })
+      months.push(monthName)
+      
+      // Filter jobs for this month
+      const monthJobs = jobs.filter(job => {
+        const jobDate = new Date(job.startTime)
+        return jobDate.getMonth() === date.getMonth() && 
+               jobDate.getFullYear() === date.getFullYear()
+      })
+      
+      const successfulJobs = monthJobs.filter(job => job.status === 'completed')
+      
+      totalJobsData.push(monthJobs.length)
+      successfulJobsData.push(successfulJobs.length)
+    }
+    
+    return { months, totalJobsData, successfulJobsData }
+  }
+  
+  const { months, totalJobsData, successfulJobsData } = generateTrendData()
+  
   const option = {
     tooltip: {
       trigger: "axis",
@@ -21,7 +55,7 @@ export function EnrichmentTrendChart() {
     xAxis: {
       type: "category",
       boundaryGap: false,
-      data: ["January", "February", "March", "April", "May", "June"],
+      data: months,
     },
     yAxis: {
       type: "value",
@@ -35,7 +69,7 @@ export function EnrichmentTrendChart() {
         emphasis: {
           focus: "series",
         },
-        data: [186, 305, 237, 273, 209, 214],
+        data: totalJobsData,
       },
       {
         name: "Successful Jobs",
@@ -45,7 +79,7 @@ export function EnrichmentTrendChart() {
         emphasis: {
           focus: "series",
         },
-        data: [80, 200, 120, 190, 130, 140],
+        data: successfulJobsData,
       },
     ],
   }

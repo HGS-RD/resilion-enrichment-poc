@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { 
   Card, 
   CardContent, 
@@ -9,7 +9,12 @@ import {
   Input,
   Button,
   Badge,
-  Progress
+  Progress,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
 } from "@workspace/ui"
 import { 
   Search, 
@@ -19,62 +24,101 @@ import {
   Check,
   X,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  AlertCircle
 } from "lucide-react"
+import { useEnrichmentJobs } from "@workspace/ui"
 
-// Mock fact data based on the mockup
-const mockFacts = [
-  {
-    id: "fact-001",
-    type: "Company Revenue",
-    category: "Financial",
-    value: 2400000000,
-    currency: "USD",
-    period: "2023",
-    confidence: 92,
-    evidenceText: "Global Steel Corporation reported annual revenue of $2.4 billion for fiscal year 2023, representing a 15% increase from the previous year. The company's strong performance was driven by increased demand in the automotive and construction sectors...",
-    sourceUrl: "https://globalsteel.org/investor-relations",
-    extractedAt: "2024-01-15T10:30:00Z",
-    jsonData: {
-      fact_type: "revenue",
-      value: 2400000000,
-      currency: "USD",
-      period: "2023",
-      confidence_score: 0.92,
-      source_url: "https://globalsteel.org/...",
-      extracted_at: "2024-01-15T10:30:00Z"
+// Real fact data will be fetched from API
+const useFacts = (selectedDomain: string | null) => {
+  const [facts, setFacts] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!selectedDomain) {
+      setFacts([])
+      return
     }
-  },
-  {
-    id: "fact-002",
-    type: "Employee Count",
-    category: "Personnel",
-    value: 15000,
-    confidence: 78,
-    evidenceText: "The company employs approximately 15,000 people across its global operations, with major facilities in North America, Europe, and Asia. This represents a 5% increase in workforce compared to the previous year...",
-    sourceUrl: "https://globalsteel.org/about-us",
-    extractedAt: "2024-01-15T10:32:00Z",
-    jsonData: {
-      fact_type: "employee_count",
-      value: 15000,
-      confidence_score: 0.78,
-      source_url: "https://globalsteel.org/...",
-      extracted_at: "2024-01-15T10:32:00Z"
+
+    const fetchFacts = async () => {
+      setIsLoading(true)
+      setError(null)
+      try {
+        const response = await fetch(`/api/facts?domain=${encodeURIComponent(selectedDomain)}`)
+        if (!response.ok) {
+          throw new Error(`Failed to fetch facts: ${response.statusText}`)
+        }
+        const data = await response.json()
+        setFacts(data.facts || [])
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch facts')
+        setFacts([])
+      } finally {
+        setIsLoading(false)
+      }
     }
-  }
-]
+
+    fetchFacts()
+  }, [selectedDomain])
+
+  return { facts, isLoading, error }
+}
 
 export default function FactsPage() {
   const [searchTerm, setSearchTerm] = useState("")
-  const [selectedFact, setSelectedFact] = useState(mockFacts[0])
+  const [selectedDomain, setSelectedDomain] = useState<string | null>(null)
+  const [selectedFact, setSelectedFact] = useState<any>(null)
   const [isJsonExpanded, setIsJsonExpanded] = useState(false)
+  
+  const { jobs } = useEnrichmentJobs()
+  const { facts, isLoading, error } = useFacts(selectedDomain)
 
-  const handleApprove = (factId: string) => {
-    console.log("Approving fact:", factId)
+  // Get completed jobs with facts for domain selection
+  const completedJobs = jobs.filter(job => job.status === 'completed' && job.factsFound > 0)
+
+  // Filter facts based on search term
+  const filteredFacts = facts.filter(fact => 
+    !searchTerm || 
+    fact.fact_type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    fact.source_text?.toLowerCase().includes(searchTerm.toLowerCase())
+  )
+
+  // Set first fact as selected when facts change
+  useEffect(() => {
+    if (filteredFacts.length > 0 && !selectedFact) {
+      setSelectedFact(filteredFacts[0])
+    }
+  }, [filteredFacts, selectedFact])
+
+  const handleApprove = async (factId: string) => {
+    try {
+      const response = await fetch(`/api/facts/${factId}/approve`, {
+        method: 'POST'
+      })
+      if (response.ok) {
+        console.log("Fact approved:", factId)
+        // Refresh facts
+        // Could add optimistic update here
+      }
+    } catch (error) {
+      console.error("Failed to approve fact:", error)
+    }
   }
 
-  const handleReject = (factId: string) => {
-    console.log("Rejecting fact:", factId)
+  const handleReject = async (factId: string) => {
+    try {
+      const response = await fetch(`/api/facts/${factId}/reject`, {
+        method: 'POST'
+      })
+      if (response.ok) {
+        console.log("Fact rejected:", factId)
+        // Refresh facts
+        // Could add optimistic update here
+      }
+    } catch (error) {
+      console.error("Failed to reject fact:", error)
+    }
   }
 
   const getConfidenceColor = (confidence: number) => {
@@ -88,6 +132,14 @@ export default function FactsPage() {
     if (confidence >= 70) return "text-yellow-700"
     return "text-red-700"
   }
+
+  const formatFactType = (factType: string) => {
+    return factType.split('_').map(word => 
+      word.charAt(0).toUpperCase() + word.slice(1)
+    ).join(' ')
+  }
+
+  const selectedJob = jobs.find(job => job.domain === selectedDomain)
 
   return (
     <div className="flex-1 p-6 space-y-6">
@@ -119,162 +171,242 @@ export default function FactsPage() {
         </div>
       </div>
 
+      {/* Domain Selection */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Select Domain</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-4">
+            <div className="flex-1">
+              <Select value={selectedDomain || ""} onValueChange={setSelectedDomain}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a domain to view facts..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {completedJobs.map((job) => (
+                    <SelectItem key={job.id} value={job.domain}>
+                      {job.domain} ({job.factsFound} facts)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {selectedDomain && (
+              <Button variant="outline">
+                <Download className="h-4 w-4 mr-2" />
+                Export Facts
+              </Button>
+            )}
+          </div>
+          {completedJobs.length === 0 && (
+            <p className="text-sm text-gray-500 mt-2">
+              No completed jobs with facts found. Run some enrichment jobs first.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Job Info Header */}
-      <div className="flex items-center justify-between bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
-        <div>
-          <h2 className="text-lg font-semibold">globalsteel.org</h2>
-          <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
-            <span>Job ID: ENR-2024-001</span>
-            <span>•</span>
-            <Badge variant="secondary" className="bg-green-100 text-green-800">
-              Completed
-            </Badge>
-            <span>•</span>
-            <span>47 facts found</span>
+      {selectedJob && (
+        <div className="flex items-center justify-between bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+          <div>
+            <h2 className="text-lg font-semibold">{selectedJob.domain}</h2>
+            <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
+              <span>Job ID: {selectedJob.id}</span>
+              <span>•</span>
+              <Badge variant="secondary" className="bg-green-100 text-green-800">
+                {selectedJob.status}
+              </Badge>
+              <span>•</span>
+              <span>{facts.length} facts found</span>
+            </div>
           </div>
         </div>
-        <Button variant="outline">
-          <Download className="h-4 w-4 mr-2" />
-          Export
-        </Button>
-      </div>
+      )}
+
+      {/* Loading State */}
+      {isLoading && (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-center py-8">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-gray-600">Loading facts...</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Error State */}
+      {error && (
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2 text-red-800">
+              <AlertCircle className="h-4 w-4" />
+              <span className="font-medium">Error:</span>
+              <span>{error}</span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* No Facts State */}
+      {selectedDomain && !isLoading && !error && facts.length === 0 && (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center py-8">
+              <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No Facts Found</h3>
+              <p className="text-gray-600">
+                No facts were extracted for {selectedDomain}. The enrichment process may have failed or found no extractable information.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Main Content */}
-      <div className="space-y-6">
-        {/* Current Fact */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div className="flex items-center gap-3">
-              <CardTitle className="text-xl">{selectedFact.type}</CardTitle>
-              <Badge variant="outline" className="text-blue-600 border-blue-200">
-                {selectedFact.category}
-              </Badge>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button 
-                onClick={() => handleApprove(selectedFact.id)}
-                className="bg-green-600 hover:bg-green-700"
-              >
-                <Check className="h-4 w-4 mr-2" />
-                Approve
-              </Button>
-              <Button 
-                variant="destructive"
-                onClick={() => handleReject(selectedFact.id)}
-              >
-                <X className="h-4 w-4 mr-2" />
-                Reject
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Confidence Score */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium">Confidence:</span>
-                <span className={`text-sm font-bold ${getConfidenceTextColor(selectedFact.confidence)}`}>
-                  {selectedFact.confidence}%
-                </span>
+      {selectedFact && facts.length > 0 && (
+        <div className="space-y-6">
+          {/* Current Fact */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div className="flex items-center gap-3">
+                <CardTitle className="text-xl">{formatFactType(selectedFact.fact_type)}</CardTitle>
+                <Badge variant="outline" className="text-blue-600 border-blue-200">
+                  {selectedFact.fact_type}
+                </Badge>
               </div>
-              <Progress 
-                value={selectedFact.confidence} 
-                className="h-2"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Evidence Text */}
-              <div>
-                <h3 className="text-lg font-semibold mb-3">Evidence Text</h3>
-                <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
-                  <p className="text-sm leading-relaxed mb-4">
-                    {selectedFact.evidenceText}
-                  </p>
-                  <div className="flex items-center gap-2 text-sm text-blue-600">
-                    <ExternalLink className="h-3 w-3" />
-                    <a 
-                      href={selectedFact.sourceUrl} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="hover:underline"
-                    >
-                      Source: {selectedFact.sourceUrl}
-                    </a>
-                  </div>
-                </div>
-              </div>
-
-              {/* JSON Data */}
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-lg font-semibold">JSON Data</h3>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setIsJsonExpanded(!isJsonExpanded)}
-                    className="text-blue-600"
-                  >
-                    {isJsonExpanded ? (
-                      <>
-                        <ChevronUp className="h-4 w-4 mr-1" />
-                        Collapse
-                      </>
-                    ) : (
-                      <>
-                        <ChevronDown className="h-4 w-4 mr-1" />
-                        Expand
-                      </>
-                    )}
-                  </Button>
-                </div>
-                <div className="bg-gray-900 text-green-400 p-4 rounded-lg font-mono text-sm overflow-x-auto">
-                  <pre>
-                    {isJsonExpanded 
-                      ? JSON.stringify(selectedFact.jsonData, null, 2)
-                      : JSON.stringify(selectedFact.jsonData, null, 2).split('\n').slice(0, 6).join('\n') + '\n  ...'
-                    }
-                  </pre>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Additional Facts Preview */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Other Facts from this Job</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {mockFacts.map((fact) => (
-                <div 
-                  key={fact.id}
-                  className={`p-3 rounded-lg border cursor-pointer transition-colors ${
-                    selectedFact.id === fact.id 
-                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/20' 
-                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
-                  }`}
-                  onClick={() => setSelectedFact(fact)}
+              <div className="flex items-center gap-2">
+                <Button 
+                  onClick={() => handleApprove(selectedFact.id)}
+                  className="bg-green-600 hover:bg-green-700"
                 >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="font-medium">{fact.type}</div>
-                      <Badge variant="outline" className="text-xs">
-                        {fact.category}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className={`w-2 h-2 rounded-full ${getConfidenceColor(fact.confidence)}`} />
-                      <span className="text-sm text-gray-600">{fact.confidence}%</span>
-                    </div>
+                  <Check className="h-4 w-4 mr-2" />
+                  Approve
+                </Button>
+                <Button 
+                  variant="destructive"
+                  onClick={() => handleReject(selectedFact.id)}
+                >
+                  <X className="h-4 w-4 mr-2" />
+                  Reject
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Confidence Score */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium">Confidence:</span>
+                  <span className={`text-sm font-bold ${getConfidenceTextColor(Math.round(selectedFact.confidence_score * 100))}`}>
+                    {Math.round(selectedFact.confidence_score * 100)}%
+                  </span>
+                </div>
+                <Progress 
+                  value={selectedFact.confidence_score * 100} 
+                  className="h-2"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Evidence Text */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-3">Evidence Text</h3>
+                  <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+                    <p className="text-sm leading-relaxed mb-4">
+                      {selectedFact.source_text}
+                    </p>
+                    {selectedFact.source_url && (
+                      <div className="flex items-center gap-2 text-sm text-blue-600">
+                        <ExternalLink className="h-3 w-3" />
+                        <a 
+                          href={selectedFact.source_url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="hover:underline"
+                        >
+                          Source: {selectedFact.source_url}
+                        </a>
+                      </div>
+                    )}
                   </div>
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+
+                {/* JSON Data */}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-lg font-semibold">Fact Data</h3>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIsJsonExpanded(!isJsonExpanded)}
+                      className="text-blue-600"
+                    >
+                      {isJsonExpanded ? (
+                        <>
+                          <ChevronUp className="h-4 w-4 mr-1" />
+                          Collapse
+                        </>
+                      ) : (
+                        <>
+                          <ChevronDown className="h-4 w-4 mr-1" />
+                          Expand
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                  <div className="bg-gray-900 text-green-400 p-4 rounded-lg font-mono text-sm overflow-x-auto">
+                    <pre>
+                      {isJsonExpanded 
+                        ? JSON.stringify(selectedFact.fact_data, null, 2)
+                        : JSON.stringify(selectedFact.fact_data, null, 2).split('\n').slice(0, 6).join('\n') + '\n  ...'
+                      }
+                    </pre>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Additional Facts Preview */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Other Facts from {selectedDomain}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {filteredFacts.map((fact) => (
+                  <div 
+                    key={fact.id}
+                    className={`p-3 rounded-lg border cursor-pointer transition-colors ${
+                      selectedFact.id === fact.id 
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/20' 
+                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+                    }`}
+                    onClick={() => setSelectedFact(fact)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="font-medium">{formatFactType(fact.fact_type)}</div>
+                        <Badge variant="outline" className="text-xs">
+                          {fact.fact_type}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${getConfidenceColor(Math.round(fact.confidence_score * 100))}`} />
+                        <span className="text-sm text-gray-600">{Math.round(fact.confidence_score * 100)}%</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   )
 }

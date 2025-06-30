@@ -36,57 +36,15 @@ interface UseEnrichmentJobsReturn {
   startJob: (jobId: string) => Promise<boolean>
   refreshJobs: () => Promise<void>
   getJobById: (jobId: string) => EnrichmentJob | undefined
+  deleteJob: (jobId: string) => Promise<boolean>
 }
 
-// Mock data for development - replace with real API calls
-const mockJobs: EnrichmentJob[] = [
-  {
-    id: "ENR-2024-001",
-    domain: "globalsteel.org",
-    status: "completed",
-    startTime: "2024-01-15T10:30:00Z",
-    endTime: "2024-01-15T10:45:00Z",
-    factsFound: 47,
-    progress: {
-      currentStep: "completed",
-      stepsCompleted: 7,
-      totalSteps: 7,
-      pagesCrawled: 42,
-      chunksCreated: 156,
-      embeddingsProgress: 100
-    }
-  },
-  {
-    id: "ENR-2024-002",
-    domain: "techcorp.io",
-    status: "running",
-    startTime: "2024-01-15T11:15:00Z",
-    factsFound: 23,
-    progress: {
-      currentStep: "embedding",
-      stepsCompleted: 3,
-      totalSteps: 7,
-      pagesCrawled: 28,
-      chunksCreated: 89,
-      embeddingsProgress: 68
-    }
-  },
-  {
-    id: "ENR-2024-003",
-    domain: "acme-corp.com",
-    status: "failed",
-    startTime: "2024-01-15T09:45:00Z",
-    endTime: "2024-01-15T09:47:00Z",
-    factsFound: 0,
-    error: "Connection timeout - unable to crawl domain"
-  }
-]
-
-const mockStats: JobStats = {
-  totalJobs: 247,
-  successRate: 94.2,
-  avgConfidence: 87.5,
-  factsFound: 8429
+// Initial empty stats - will be populated from real data
+const initialStats: JobStats = {
+  totalJobs: 0,
+  successRate: 0,
+  avgConfidence: 0,
+  factsFound: 0
 }
 
 // Helper functions to convert backend job format to frontend format
@@ -131,52 +89,28 @@ function getEmbeddingProgress(job: any): number {
 }
 
 export function useEnrichmentJobs(): UseEnrichmentJobsReturn {
-  const [jobs, setJobs] = useState<EnrichmentJob[]>(mockJobs)
-  const [stats, setStats] = useState<JobStats>(mockStats)
-  const [isLoading, setIsLoading] = useState(false)
+  const [jobs, setJobs] = useState<EnrichmentJob[]>([])
+  const [stats, setStats] = useState<JobStats>(initialStats)
+  const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Simulate real-time updates for running jobs
+  // Fetch real jobs on mount
+  useEffect(() => {
+    refreshJobs()
+  }, [])
+
+  // Real-time updates for running jobs - fetch from backend instead of simulating
   useEffect(() => {
     const interval = setInterval(() => {
-      setJobs(currentJobs => 
-        currentJobs.map(job => {
-          if (job.status === "running" && job.progress) {
-            // Simulate progress updates
-            const newProgress = Math.min(job.progress.embeddingsProgress + Math.random() * 5, 100)
-            const updatedProgress = {
-              ...job.progress,
-              embeddingsProgress: newProgress
-            }
-
-            // Complete job when progress reaches 100%
-            if (newProgress >= 100) {
-              return {
-                ...job,
-                status: "completed" as const,
-                endTime: new Date().toISOString(),
-                factsFound: Math.floor(Math.random() * 50) + 20,
-                progress: {
-                  ...updatedProgress,
-                  currentStep: "completed",
-                  stepsCompleted: 7,
-                  embeddingsProgress: 100
-                }
-              }
-            }
-
-            return {
-              ...job,
-              progress: updatedProgress
-            }
-          }
-          return job
-        })
-      )
-    }, 2000) // Update every 2 seconds
+      // Only refresh if there are running jobs
+      const hasRunningJobs = jobs.some(job => job.status === "running")
+      if (hasRunningJobs) {
+        refreshJobs()
+      }
+    }, 5000) // Check every 5 seconds
 
     return () => clearInterval(interval)
-  }, [])
+  }, [jobs])
 
   const createJob = useCallback(async (domain: string): Promise<string | null> => {
     setIsLoading(true)
@@ -356,6 +290,43 @@ export function useEnrichmentJobs(): UseEnrichmentJobsReturn {
     }
   }, [])
 
+  const deleteJob = useCallback(async (jobId: string): Promise<boolean> => {
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const response = await fetch(`/api/enrichment/${jobId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to delete job')
+      }
+
+      if (data.success) {
+        // Remove job from local state
+        setJobs(currentJobs => currentJobs.filter(job => job.id !== jobId))
+        
+        // Refresh stats after deletion
+        await refreshJobs()
+        
+        return true
+      }
+
+      throw new Error('Invalid response format')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete job")
+      return false
+    } finally {
+      setIsLoading(false)
+    }
+  }, [refreshJobs])
+
   const getJobById = useCallback((jobId: string): EnrichmentJob | undefined => {
     return jobs.find(job => job.id === jobId)
   }, [jobs])
@@ -368,6 +339,7 @@ export function useEnrichmentJobs(): UseEnrichmentJobsReturn {
     createJob,
     startJob,
     refreshJobs,
-    getJobById
+    getJobById,
+    deleteJob
   }
 }

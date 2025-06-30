@@ -312,6 +312,51 @@ export class JobRepository implements IJobRepository {
   }
 
   /**
+   * Deletes a job and all associated data
+   */
+  async deleteJob(id: string): Promise<boolean> {
+    const client = await this.pool.connect();
+    
+    try {
+      await client.query('BEGIN');
+
+      // Delete from related tables first (to maintain referential integrity)
+      
+      // Delete job logs
+      await client.query('DELETE FROM job_logs WHERE job_id = $1', [id]);
+      
+      // Delete from failed_jobs table
+      await client.query('DELETE FROM failed_jobs WHERE original_job_id = $1', [id]);
+      
+      // Delete facts associated with this job
+      await client.query('DELETE FROM facts WHERE job_id = $1', [id]);
+      
+      // Delete text chunks associated with this job
+      await client.query('DELETE FROM text_chunks WHERE job_id = $1', [id]);
+      
+      // Delete crawled pages associated with this job
+      await client.query('DELETE FROM crawled_pages WHERE job_id = $1', [id]);
+      
+      // Delete embeddings associated with this job
+      await client.query('DELETE FROM embeddings WHERE job_id = $1', [id]);
+      
+      // Finally, delete the main job record
+      const result = await client.query('DELETE FROM enrichment_jobs WHERE id = $1', [id]);
+      
+      await client.query('COMMIT');
+      
+      // Return true if a row was deleted
+      return (result.rowCount ?? 0) > 0;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      console.error('Failed to delete job:', error);
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
    * Maps database row to EnrichmentJob object
    */
   private mapRowToJob(row: any): EnrichmentJob {
@@ -339,6 +384,34 @@ export class JobRepository implements IJobRepository {
       embeddings_generated: row.embeddings_generated,
       facts_extracted: row.facts_extracted,
     };
+  }
+
+  /**
+   * Gets job logs for a specific job
+   */
+  async getJobLogs(jobId: string, limit: number = 50): Promise<any[]> {
+    const client = await this.pool.connect();
+    
+    try {
+      const query = `
+        SELECT id, level, message, details, created_at
+        FROM job_logs 
+        WHERE job_id = $1 
+        ORDER BY created_at DESC
+        LIMIT $2
+      `;
+      const result = await client.query(query, [jobId, limit]);
+      
+      return result.rows.map(row => ({
+        id: row.id,
+        level: row.level,
+        message: row.message,
+        details: typeof row.details === 'string' ? JSON.parse(row.details) : row.details,
+        timestamp: row.created_at.toISOString()
+      }));
+    } finally {
+      client.release();
+    }
   }
 
   /**

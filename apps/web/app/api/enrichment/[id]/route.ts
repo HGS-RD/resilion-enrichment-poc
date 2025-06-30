@@ -1,49 +1,70 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { JobRepository } from '@/lib/repositories/job-repository';
+import { NextRequest, NextResponse } from 'next/server'
+import { JobRepository } from '../../../../lib/repositories/job-repository'
 
-/**
- * API Route: GET /api/enrichment/[id]
- * 
- * Gets an enrichment job by ID.
- * Returns the job details and current status.
- */
+const jobRepository = new JobRepository()
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const jobId = params.id;
-
-    if (!jobId) {
-      return NextResponse.json({
-        error: 'Validation error',
-        message: 'Job ID is required'
-      }, { status: 400 });
-    }
-
-    // Initialize repository
-    const jobRepository = new JobRepository();
-
-    // Get the job
-    const job = await jobRepository.findById(jobId);
+    const job = await jobRepository.findById(params.id)
+    
     if (!job) {
-      return NextResponse.json({
-        error: 'Not found',
-        message: 'Job not found'
-      }, { status: 404 });
+      return NextResponse.json(
+        { success: false, message: 'Job not found' },
+        { status: 404 }
+      )
     }
 
     return NextResponse.json({
       success: true,
-      job: job
-    });
-
+      job
+    })
   } catch (error) {
-    console.error('Error fetching enrichment job:', error);
+    console.error('Error fetching job:', error)
+    return NextResponse.json(
+      { success: false, message: 'Failed to fetch job' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const jobId = params.id
+
+    // Check if job exists
+    const existingJob = await jobRepository.findById(jobId)
+    if (!existingJob) {
+      return NextResponse.json(
+        { success: false, message: 'Job not found' },
+        { status: 404 }
+      )
+    }
+
+    // Delete the job and all associated data
+    const deleted = await jobRepository.deleteJob(jobId)
+    
+    if (!deleted) {
+      return NextResponse.json(
+        { success: false, message: 'Failed to delete job' },
+        { status: 500 }
+      )
+    }
+
     return NextResponse.json({
-      error: 'Internal server error',
-      message: 'Failed to fetch enrichment job'
-    }, { status: 500 });
+      success: true,
+      message: 'Job and all associated data deleted successfully'
+    })
+  } catch (error) {
+    console.error('Error deleting job:', error)
+    return NextResponse.json(
+      { success: false, message: 'Failed to delete job' },
+      { status: 500 }
+    )
   }
 }

@@ -1,4 +1,4 @@
-import { BaseEnrichmentStep } from '../enrichment-agent';
+import { BaseEnrichmentStep } from '../base-enrichment-step';
 import { EnrichmentContext, EnrichmentFact, ExtractionConfig } from '../../types/enrichment';
 import { FactRepository } from '../../repositories/fact-repository';
 import { promptBuilder } from '../prompt-templates';
@@ -41,7 +41,10 @@ export class FactExtractionStep extends BaseEnrichmentStep {
     return !!(
       context.job && 
       context.job.embedding_status === 'completed' &&
-      context.job.extraction_status !== 'completed' &&
+      (context.job.extraction_status === undefined || 
+       context.job.extraction_status === null || 
+       context.job.extraction_status === 'pending' || 
+       context.job.extraction_status === 'failed') &&
       context.embeddings &&
       context.embeddings.length > 0
     );

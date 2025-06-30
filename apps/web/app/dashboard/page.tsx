@@ -31,67 +31,6 @@ import {
   Bell
 } from "lucide-react"
 
-// Mock data matching the dashboard mockup
-const mockStats = {
-  totalJobs: 247,
-  successRate: 94.2,
-  avgConfidence: 87.5,
-  factsFound: 8429
-}
-
-const mockTopErrors = [
-  {
-    type: "Connection Timeout",
-    description: "Network issues",
-    count: 8,
-    color: "text-red-600"
-  },
-  {
-    type: "Parse Error", 
-    description: "Invalid JSON",
-    count: 5,
-    color: "text-orange-600"
-  },
-  {
-    type: "Rate Limited",
-    description: "API throttling", 
-    count: 3,
-    color: "text-yellow-600"
-  },
-  {
-    type: "Auth Failed",
-    description: "Access denied",
-    count: 2,
-    color: "text-purple-600"
-  }
-]
-
-const mockRecentActivity = [
-  {
-    id: "ENR-2024-001",
-    domain: "globalsteel.org",
-    status: "Completed",
-    startTime: "2024-01-15 10:30:00",
-    endTime: "2024-01-15 10:45:00",
-    factsFound: 47
-  },
-  {
-    id: "ENR-2024-002", 
-    domain: "techcorp.io",
-    status: "Running",
-    startTime: "2024-01-15 11:15:00",
-    endTime: "-",
-    factsFound: 23
-  },
-  {
-    id: "ENR-2024-003",
-    domain: "acme-corp.com", 
-    status: "Failed",
-    startTime: "2024-01-15 09:45:00",
-    endTime: "2024-01-15 09:47:00",
-    factsFound: 0
-  }
-]
 
 export default function DashboardPage() {
   const { jobs, stats } = useEnrichmentJobs()

@@ -1,4 +1,4 @@
-import { BaseEnrichmentStep } from '../enrichment-agent';
+import { BaseEnrichmentStep } from '../base-enrichment-step';
 import { EnrichmentContext, TextChunk, ChunkingConfig } from '../../types/enrichment';
 
 /**
@@ -31,7 +31,10 @@ export class TextChunkingStep extends BaseEnrichmentStep {
     return !!(
       context.job && 
       context.job.crawling_status === 'completed' &&
-      context.job.chunking_status !== 'completed' &&
+      (context.job.chunking_status === undefined || 
+       context.job.chunking_status === null || 
+       context.job.chunking_status === 'pending' || 
+       context.job.chunking_status === 'failed') &&
       context.crawled_pages &&
       context.crawled_pages.length > 0
     );

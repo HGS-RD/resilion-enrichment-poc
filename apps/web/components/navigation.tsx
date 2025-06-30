@@ -10,6 +10,7 @@ import {
   Settings
 } from "lucide-react"
 import { ThemeToggle } from "./theme-toggle"
+import { useEnrichmentJobs } from "@workspace/ui"
 
 const navigation = [
   {
@@ -34,15 +35,15 @@ const navigation = [
   }
 ]
 
-// Mock recent jobs data - in real app this would come from API
-const recentJobs = [
-  { domain: "globalsteel.org", status: "completed" },
-  { domain: "acme.com", status: "failed" },
-  { domain: "techcorp.io", status: "pending" }
-]
-
 export function Navigation() {
   const pathname = usePathname()
+  const { jobs } = useEnrichmentJobs()
+  
+  // Get the 3 most recent jobs for sidebar
+  const recentJobs = jobs.slice(0, 3).map(job => ({
+    domain: job.domain,
+    status: job.status
+  }))
 
   return (
     <nav className="bg-white dark:bg-gray-950 border-r border-gray-200 dark:border-gray-800 w-64 min-h-screen">

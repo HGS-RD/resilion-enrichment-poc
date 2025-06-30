@@ -1,4 +1,4 @@
-import { BaseEnrichmentStep } from '../enrichment-agent';
+import { BaseEnrichmentStep } from '../base-enrichment-step';
 import { EnrichmentContext, CrawledPage, CrawlerConfig } from '../../types/enrichment';
 import { generateCrawlUrl, isDomainCrawlable } from '../../utils/domain-validator';
 import * as cheerio from 'cheerio';
@@ -32,7 +32,12 @@ export class WebCrawlerStep extends BaseEnrichmentStep {
 
   canHandle(context: EnrichmentContext): boolean {
     // Can handle if job exists and crawling hasn't been completed
-    return !!(context.job && context.job.crawling_status !== 'completed');
+    // If crawling_status is undefined/null, treat as pending (can handle)
+    return !!(context.job && 
+             (context.job.crawling_status === undefined || 
+              context.job.crawling_status === null || 
+              context.job.crawling_status === 'pending' || 
+              context.job.crawling_status === 'failed'));
   }
 
   async execute(context: EnrichmentContext): Promise<EnrichmentContext> {

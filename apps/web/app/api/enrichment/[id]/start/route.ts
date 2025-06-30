@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { JobRepository } from '@/lib/repositories/job-repository';
-import { EnrichmentAgent } from '@/lib/services/enrichment-agent';
+import { JobRepository } from '../../../../../lib/repositories/job-repository';
+import { EnrichmentAgent } from '../../../../../lib/services/enrichment-agent';
 
 /**
  * API Route: POST /api/enrichment/[id]/start

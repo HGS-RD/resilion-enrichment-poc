@@ -1,4 +1,4 @@
-import { BaseEnrichmentStep } from '../enrichment-agent';
+import { BaseEnrichmentStep } from '../base-enrichment-step';
 import { EnrichmentContext, EmbeddingResult, EmbeddingConfig } from '../../types/enrichment';
 import { Pinecone } from '@pinecone-database/pinecone';
 
@@ -41,7 +41,10 @@ export class EmbeddingStep extends BaseEnrichmentStep {
     return !!(
       context.job && 
       context.job.chunking_status === 'completed' &&
-      context.job.embedding_status !== 'completed' &&
+      (context.job.embedding_status === undefined || 
+       context.job.embedding_status === null || 
+       context.job.embedding_status === 'pending' || 
+       context.job.embedding_status === 'failed') &&
       context.text_chunks &&
       context.text_chunks.length > 0
     );
