@@ -17,36 +17,20 @@ export async function GET(
     const client = await pool.connect();
 
     try {
-      // Get comprehensive job debug information
-      const debugQuery = `
+      // First check if job exists using basic query
+      const jobQuery = `
         SELECT 
           j.*,
-          -- Aggregated metrics
-          COUNT(DISTINCT c.id) as total_chunks,
-          COUNT(DISTINCT e.id) as total_embeddings,
           COUNT(DISTINCT f.id) as total_facts,
-          COUNT(DISTINCT p.id) as total_prompts,
-          COUNT(DISTINCT mr.id) as total_model_responses,
-          -- Quality metrics
           AVG(f.confidence_score) as avg_confidence,
-          AVG(c.quality_score) as avg_chunk_quality,
-          -- Performance metrics
-          SUM(mr.api_cost_usd) as total_api_cost,
-          SUM(mr.total_tokens) as total_tokens_used,
-          AVG(mr.response_time_ms) as avg_response_time,
-          -- Timing analysis
           EXTRACT(EPOCH FROM (j.completed_at - j.started_at)) * 1000 as total_duration_ms
         FROM enrichment_jobs j
-        LEFT JOIN enrichment_chunks c ON j.id = c.job_id
-        LEFT JOIN enrichment_embeddings e ON j.id = e.job_id
         LEFT JOIN enrichment_facts f ON j.id = f.job_id
-        LEFT JOIN enrichment_prompts p ON j.id = p.job_id
-        LEFT JOIN enrichment_model_responses mr ON j.id = mr.job_id
         WHERE j.id = $1
         GROUP BY j.id
       `;
 
-      const debugResult = await client.query(debugQuery, [jobId]);
+      const debugResult = await client.query(jobQuery, [jobId]);
       
       if (debugResult.rows.length === 0) {
         return NextResponse.json(
@@ -57,29 +41,23 @@ export async function GET(
 
       const jobDebugInfo = debugResult.rows[0];
 
-      // Get step-by-step breakdown
+      // Get step-by-step breakdown using only existing tables
       const stepsQuery = `
         SELECT 
-          step_name,
-          status,
-          COUNT(p.id) as prompt_count,
-          AVG(mr.response_time_ms) as avg_response_time,
-          SUM(mr.total_tokens) as total_tokens,
-          SUM(mr.api_cost_usd) as total_cost,
-          MIN(p.created_at) as step_started_at,
-          MAX(mr.created_at) as step_completed_at
-        FROM (
-          SELECT 'crawling' as step_name, crawling_status as status FROM enrichment_jobs WHERE id = $1
-          UNION ALL
-          SELECT 'chunking' as step_name, chunking_status as status FROM enrichment_jobs WHERE id = $1
-          UNION ALL
-          SELECT 'embedding' as step_name, embedding_status as status FROM enrichment_jobs WHERE id = $1
-          UNION ALL
-          SELECT 'extraction' as step_name, extraction_status as status FROM enrichment_jobs WHERE id = $1
-        ) steps
-        LEFT JOIN enrichment_prompts p ON p.job_id = $1 AND p.step_name = steps.step_name
-        LEFT JOIN enrichment_model_responses mr ON p.id = mr.prompt_id
-        GROUP BY step_name, status
+          'crawling' as step_name, crawling_status as status
+        FROM enrichment_jobs WHERE id = $1
+        UNION ALL
+        SELECT 
+          'chunking' as step_name, chunking_status as status
+        FROM enrichment_jobs WHERE id = $1
+        UNION ALL
+        SELECT 
+          'embedding' as step_name, embedding_status as status
+        FROM enrichment_jobs WHERE id = $1
+        UNION ALL
+        SELECT 
+          'extraction' as step_name, extraction_status as status
+        FROM enrichment_jobs WHERE id = $1
         ORDER BY 
           CASE step_name 
             WHEN 'crawling' THEN 1
@@ -91,17 +69,14 @@ export async function GET(
 
       const stepsResult = await client.query(stepsQuery, [jobId]);
 
-      // Get recent debug logs
+      // Get job logs from existing job_logs table
       const logsQuery = `
         SELECT 
-          step_name,
-          log_level,
+          level as log_level,
           message,
           details,
-          execution_time_ms,
-          memory_usage_mb,
           created_at
-        FROM enrichment_debug_logs
+        FROM job_logs
         WHERE job_id = $1
         ORDER BY created_at DESC
         LIMIT 100
@@ -109,53 +84,23 @@ export async function GET(
 
       const logsResult = await client.query(logsQuery, [jobId]);
 
-      // Get performance metrics
-      const metricsQuery = `
-        SELECT 
-          metric_type,
-          metric_name,
-          metric_value,
-          metric_unit,
-          metric_metadata,
-          recorded_at
-        FROM enrichment_performance_metrics
-        WHERE job_id = $1
-        ORDER BY recorded_at DESC
-      `;
-
-      const metricsResult = await client.query(metricsQuery, [jobId]);
-
-      // Get error analysis
-      const errorsQuery = `
-        SELECT 
-          step_name,
-          COUNT(*) as error_count,
-          array_agg(DISTINCT message) as error_messages,
-          MAX(created_at) as last_error_at
-        FROM enrichment_debug_logs
-        WHERE job_id = $1 AND log_level = 'error'
-        GROUP BY step_name
-      `;
-
-      const errorsResult = await client.query(errorsQuery, [jobId]);
-
       const debugData = {
         job: jobDebugInfo,
         steps: stepsResult.rows,
         logs: logsResult.rows,
-        metrics: metricsResult.rows,
-        errors: errorsResult.rows,
+        metrics: [], // Empty until observability tables are implemented
+        errors: [], // Empty until observability tables are implemented
         summary: {
-          total_chunks: parseInt(jobDebugInfo.total_chunks) || 0,
-          total_embeddings: parseInt(jobDebugInfo.total_embeddings) || 0,
+          total_chunks: jobDebugInfo.chunks_created || 0,
+          total_embeddings: jobDebugInfo.embeddings_generated || 0,
           total_facts: parseInt(jobDebugInfo.total_facts) || 0,
-          total_prompts: parseInt(jobDebugInfo.total_prompts) || 0,
-          total_model_responses: parseInt(jobDebugInfo.total_model_responses) || 0,
+          total_prompts: 0, // Not available yet
+          total_model_responses: 0, // Not available yet
           avg_confidence: parseFloat(jobDebugInfo.avg_confidence) || 0,
-          avg_chunk_quality: parseFloat(jobDebugInfo.avg_chunk_quality) || 0,
-          total_api_cost: parseFloat(jobDebugInfo.total_api_cost) || 0,
-          total_tokens_used: parseInt(jobDebugInfo.total_tokens_used) || 0,
-          avg_response_time: parseFloat(jobDebugInfo.avg_response_time) || 0,
+          avg_chunk_quality: 0, // Not available yet
+          total_api_cost: 0, // Not available yet
+          total_tokens_used: 0, // Not available yet
+          avg_response_time: 0, // Not available yet
           total_duration_ms: parseFloat(jobDebugInfo.total_duration_ms) || 0
         }
       };
