@@ -1,276 +1,384 @@
 # Resilion Enrichment Pre-Loader POC
 
-## Overview
+[![CI/CD Pipeline](https://github.com/HGS-RD/resilion-enrichment-poc/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/HGS-RD/resilion-enrichment-poc/actions/workflows/ci-cd.yml)
+[![Test Coverage](https://codecov.io/gh/HGS-RD/resilion-enrichment-poc/branch/main/graph/badge.svg)](https://codecov.io/gh/HGS-RD/resilion-enrichment-poc)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-The Resilion Enrichment Pre-Loader is a proof-of-concept designed to accelerate onboarding of new Resilion customers by automatically enriching known facility data. Given a minimal input, such as a company domain name, the system performs the following:
+## 🚀 Overview
 
-- Crawls public sources for relevant facility data
-- Extracts site names, addresses, site types, and key metadata
-- Applies confidence scores to each extracted fact
-- Stores enrichment facts in a staging database
-- Stores evidence text chunks and embeddings in a vector store for semantic retrieval
-- Provides a lightweight user interface to monitor and validate enrichment jobs
+The Resilion Enrichment Pre-Loader is a production-grade system designed to accelerate onboarding of new Resilion customers by automatically enriching known facility data. Given a minimal input, such as a company domain name, the system performs sophisticated multi-tier enrichment:
 
-The goal is to improve the "first experience" of Resilion customers by populating their onboarding environment with known industrial site data, reducing manual data entry and accelerating time-to-value.
+### 🎯 Core Capabilities
 
----
+- **🏢 Tier 1 - Corporate Data**: Crawls corporate websites and SEC financial documents for facility information
+- **💼 Tier 2 - Professional Data**: Extracts data from LinkedIn profiles and job postings
+- **📰 Tier 3 - News Intelligence**: Analyzes relevant news articles for facility mentions
+- **🤖 Multi-LLM Support**: Choose from GPT-4o, Claude 3 Opus, or Gemini 1.5 Pro
+- **📊 Real-time Monitoring**: Live workflow visualization with Mermaid diagrams
+- **🎨 Professional UI**: Modern Next.js 14 interface with shadcn/ui components
 
-## Features
+### 🏗️ Architecture Highlights
 
-- Domain-based enrichment trigger
-- Multi-step enrichment agent chain (crawl, chunk, embed, extract, score, persist)
-- Confidence scoring for facts
-- Postgres storage for enrichment metadata
-- Pinecone vector storage for semantic evidence retrieval
-- Workflow visualization with Mermaid diagrams
-- Simple job status tracking and error handling
-- Modular design for chaining and future extensions
-- Designed to integrate with Resilion onboarding in future phases
-
----
-
-## Architecture
-
-- **Language / Framework**: TypeScript (AI SDK), Python (optional FastAPI microservices)
-- **Frontend**: Next.js, TailwindCSS, shadcn/ui
-- **Backend**: Node.js with AI SDK orchestration
-- **Database**: DigitalOcean Managed Postgres
-- **Vector Store**: Pinecone
-- **Visualization**: Mermaid.js diagrams and React components
-- **Deployment**: DigitalOcean App Platform
+- **Frontend**: Next.js 14 with App Router, TypeScript, shadcn/ui, TailwindCSS
+- **Backend**: Node.js with AI SDK orchestration and advanced enrichment engine
+- **Database**: PostgreSQL with comprehensive job and fact tracking
+- **Vector Store**: Pinecone for semantic evidence retrieval
+- **Deployment**: DigitalOcean App Platform with automated CI/CD
+- **Monitoring**: Real-time job progress, error handling, and performance metrics
 
 ---
 
-## Getting Started
+## 🚀 Quick Start
 
 ### Prerequisites
 
-- Node.js 18+ and npm
-- DigitalOcean Managed Postgres database
-- Pinecone account and API key
-- OpenAI API key (or other LLM provider)
+- **Node.js 18+** and npm
+- **PostgreSQL Database** (DigitalOcean Managed recommended)
+- **Pinecone Account** for vector storage
+- **LLM API Keys** (OpenAI, Anthropic, or Google)
 
 ### Installation
 
-1. **Clone the repository:**
-
+1. **Clone and Install**
    ```bash
-   git clone https://github.com/your-org/resilion-enrichment-poc.git
+   git clone https://github.com/HGS-RD/resilion-enrichment-poc.git
    cd resilion-enrichment-poc
-   ```
-
-2. **Install dependencies:**
-
-   ```bash
    npm install
    ```
 
-3. **Set up environment variables:**
-
-   Copy the example environment file and configure your settings:
-
+2. **Environment Setup**
    ```bash
    cp .env.example .env
+   # Edit .env with your configuration (see Environment Variables section)
    ```
 
-   Edit `.env` with your actual configuration values (see Environment Variables section below).
-
-4. **Set up the database:**
-
-   Run the initial migration to create the database schema:
-
+3. **Database Setup**
    ```bash
-   # Apply the initial schema
-   psql $DATABASE_URL -f db/migrations/001_initial_schema.sql
+   # Apply database schema
+   psql $DATABASE_URL -f db/schema.sql
    
-   # Optional: Add sample data for development
+   # Optional: Add sample data
    psql $DATABASE_URL -f db/migrations/002_seed_data.sql
    ```
 
-5. **Start the development server:**
-
+4. **Start Development Server**
    ```bash
    npm run dev
    ```
-
-   Open [http://localhost:3000](http://localhost:3000) to view the application.
+   
+   Open [http://localhost:3001](http://localhost:3001) to view the application.
 
 ---
 
-## Environment Variables
+## 🔧 Environment Variables
 
-The application requires the following environment variables. Copy `.env.example` to `.env` and configure:
+### Required Configuration
 
-### Database Configuration
+Create a `.env` file with the following variables:
 
 ```bash
-# DigitalOcean Managed Postgres Database Configuration
-DB_USERNAME=your_db_username
-DB_PASSWORD=your_db_password
-DB_HOST=your_db_host
-DB_PORT=25060
-DB_NAME=defaultdb
-DB_SSLMODE=require
-
-# Constructed DATABASE_URL for connection
+# Database Configuration
 DATABASE_URL=postgresql://username:password@host:port/database?sslmode=require
-```
 
-### Pinecone Vector Database
-
-```bash
-# Pinecone Vector Database Configuration
-PINECONE_API_KEY=your_pinecone_api_key_here
+# Vector Database
+PINECONE_API_KEY=your_pinecone_api_key
 PINECONE_INDEX_NAME=your_index_name
 PINECONE_INDEX_HOST=https://your-index-host.svc.pinecone.io
 PINECONE_ENVIRONMENT=us-east-1
-PINECONE_DIMENSIONS=1024
-PINECONE_METRIC=cosine
-PINECONE_CLOUD=aws
-PINECONE_REGION=us-east-1
-```
 
-### LLM API Keys
+# LLM API Keys (configure at least one)
+OPENAI_API_KEY=your_openai_api_key
+ANTHROPIC_API_KEY=your_anthropic_api_key
+GOOGLE_API_KEY=your_google_api_key
 
-```bash
-# LLM API Keys Configuration (choose one or more)
-OPENAI_API_KEY=your_openai_api_key_here
-XAI_API_KEY=your_xai_grok_api_key_here
-ANTHROPIC_API_KEY=your_anthropic_claude_api_key_here
-GOOGLE_API_KEY=your_google_gemini_api_key_here
-```
+# External APIs
+BING_NEWS_API_KEY=your_bing_news_api_key
 
-### Application Settings
-
-```bash
-# Application Configuration
-LOG_LEVEL=info
+# Application Settings
 NODE_ENV=development
-
-# Next.js Configuration
-NEXTAUTH_SECRET=your_nextauth_secret_here
-NEXTAUTH_URL=http://localhost:3000
-
-# Migration and Database Management
-DB_MIGRATE_ON_START=false
-DB_SEED_ON_START=false
+LOG_LEVEL=info
+PORT=3001
 ```
+
+See `.env.example` for complete configuration options.
 
 ---
 
-## Project Structure
+## 📁 Project Structure
 
 ```
 resilion-enrichment-poc/
-├── apps/
-│   └── web/                    # Next.js frontend application
-│       ├── app/               # App router pages
-│       │   ├── dashboard/     # Dashboard page
-│       │   ├── jobs/          # Enrichment jobs page
-│       │   └── facts/         # Facts viewer page
-│       └── components/        # React components
-├── packages/
-│   └── ui/                    # Shared UI components (shadcn/ui)
-│       └── src/
-│           ├── components/    # Reusable UI components
-│           └── styles/        # Global styles
-├── db/
-│   ├── schema.sql            # Complete database schema
-│   └── migrations/           # Database migration files
-├── docs/                     # Project documentation
-├── dev/                      # Development resources
-│   ├── development_plan.md   # Engineering development plan
-│   └── ui/                   # UI mockups and designs
-└── memory-bank/              # Project learnings and reflections
+├── 🌐 apps/web/                    # Next.js 14 Application
+│   ├── app/                       # App Router Pages
+│   │   ├── dashboard/             # 📊 Main Dashboard
+│   │   ├── jobs/                  # 💼 Job Management
+│   │   │   └── [id]/              # 🔍 Job Detail View
+│   │   ├── facts/                 # 📋 Facts Viewer
+│   │   └── api/                   # 🔌 API Routes
+│   ├── lib/                       # 🛠️ Core Services
+│   │   ├── services/              # Business Logic
+│   │   │   ├── advanced-enrichment-orchestrator.ts
+│   │   │   ├── tier-processors/   # Tier-specific processors
+│   │   │   └── financial-document-parser.ts
+│   │   └── repositories/          # Data Access Layer
+├── 📦 packages/ui/                 # Shared UI Components
+│   └── src/components/            # shadcn/ui Components
+│       ├── mermaid-workflow.tsx   # 📊 Workflow Visualization
+│       ├── fact-card.tsx          # 📄 Fact Display
+│       └── job-status-badge.tsx   # 🏷️ Status Indicators
+├── 🗄️ db/                         # Database
+│   ├── schema.sql                 # Complete Schema
+│   └── migrations/                # Migration Scripts
+├── 🚀 .github/workflows/          # CI/CD Pipeline
+├── 📚 docs/                       # Documentation
+└── 🔧 dev/                        # Development Resources
 ```
 
 ---
 
-## Database Schema
+## 🎯 Key Features
 
-The application uses PostgreSQL with the following main tables:
+### 🔄 Multi-Tier Enrichment Engine
 
-- **`enrichment_jobs`**: Tracks enrichment job status and progress
-- **`enrichment_facts`**: Stores extracted facts with confidence scores
-- **`failed_jobs`**: Dead letter queue for failed jobs
-- **`job_logs`**: Detailed logging for debugging and monitoring
+1. **Tier 1 - Corporate Intelligence**
+   - Corporate website crawling with depth limits
+   - SEC EDGAR financial document parsing
+   - Facility extraction from annual reports
+   - Business segment analysis
 
-See `db/schema.sql` for the complete schema definition.
+2. **Tier 2 - Professional Networks**
+   - LinkedIn profile analysis
+   - Job posting data extraction
+   - Professional network insights
 
----
+3. **Tier 3 - News Intelligence**
+   - Bing News API integration
+   - Relevance scoring and filtering
+   - Source reputation weighting
 
-## Development Workflow
+### 🤖 Advanced LLM Integration
 
-### Git Workflow
+- **Multi-Provider Support**: OpenAI GPT-4o, Anthropic Claude 3 Opus, Google Gemini 1.5 Pro
+- **Confidence Scoring**: AI-powered confidence assessment for extracted facts
+- **Evidence Tracking**: Complete source attribution with text snippets
+- **Structured Output**: JSON schema validation for consistent data extraction
 
-- **main**: Production-ready code only
-- **feature/[milestone-name]**: Feature branches for each milestone
-- **feature/[ticket-number]-[description]**: Individual ticket branches
+### 📊 Real-Time Monitoring
 
-### Commit Standards
+- **Live Workflow Visualization**: Mermaid diagrams with real-time status updates
+- **Progress Tracking**: Step-by-step job execution monitoring
+- **Error Handling**: Comprehensive error capture and user-friendly display
+- **Performance Metrics**: Job statistics, runtime tracking, and success rates
 
-Use conventional commits format: `type(scope): description`
+### 🎨 Professional User Interface
 
-- **Types**: feat, fix, docs, style, refactor, test, chore
-- **Examples**:
-  - `feat(setup): monorepo structure and initial config`
-  - `fix(ui): resolve shadcn/ui styling issues`
-  - `docs(readme): add environment variables documentation`
-
-### Development Milestones
-
-1. **Milestone 1**: Foundation & Setup ✅
-2. **Milestone 2**: Backend Core Logic
-3. **Milestone 3**: AI-Powered Extraction
-4. **Milestone 4**: Frontend Implementation
-5. **Milestone 5**: Integration, Testing & Deployment
-
----
-
-## API Endpoints
-
-### Enrichment Jobs
-
-- `POST /api/jobs` - Create new enrichment job
-- `GET /api/jobs` - List all enrichment jobs
-- `GET /api/jobs/:id` - Get specific job details
-- `POST /api/jobs/:id/retry` - Retry failed job
-
-### Facts
-
-- `GET /api/facts` - List extracted facts
-- `GET /api/facts/:jobId` - Get facts for specific job
-- `PUT /api/facts/:id/validate` - Validate/invalidate fact
+- **Modern Design**: shadcn/ui components with professional styling
+- **Responsive Layout**: Mobile, tablet, and desktop optimized
+- **Dark/Light Themes**: User preference support
+- **Real-Time Updates**: Live job status and progress updates
+- **Export Capabilities**: JSON data export and SVG workflow diagrams
 
 ---
 
-## Deployment
+## 🔌 API Reference
+
+### Job Management
+
+```typescript
+// Create new enrichment job
+POST /api/enrichment
+{
+  "domain": "microsoft.com",
+  "llm_choice": "gpt-4o"
+}
+
+// Get job details with statistics
+GET /api/enrichment/{id}
+
+// Start job execution
+POST /api/enrichment/{id}/start
+
+// List all jobs with filtering
+GET /api/enrichment?status=running&limit=10
+```
+
+### Facts and Data
+
+```typescript
+// Get facts for a job
+GET /api/facts?job_id={id}
+
+// Validate/invalidate facts
+PUT /api/facts/{id}/validate
+{
+  "validated": true
+}
+```
+
+### Health and Monitoring
+
+```typescript
+// Application health check
+GET /api/health
+
+// Job statistics and metrics
+GET /api/enrichment/{id}/statistics
+```
+
+---
+
+## 🧪 Testing Strategy
+
+### Comprehensive Test Suite
+
+```bash
+# Unit Tests
+npm run test:unit
+
+# Integration Tests  
+npm run test:integration
+
+# End-to-End Tests
+npm run test:e2e
+
+# Test Coverage Report
+npm run test:coverage
+
+# All Tests (CI Pipeline)
+npm run test:ci
+```
+
+### Test Categories
+
+- **Unit Tests**: Service layer, repositories, utilities
+- **Integration Tests**: API endpoints, database operations
+- **E2E Tests**: Complete user workflows with Playwright
+- **Visual Tests**: UI component regression testing
+- **Performance Tests**: Load testing and optimization
+
+---
+
+## 🚀 Deployment
+
+### Automated CI/CD Pipeline
+
+The project includes a comprehensive GitHub Actions pipeline:
+
+- **✅ Linting & Code Quality**: ESLint, TypeScript checking
+- **🧪 Testing**: Unit, integration, and E2E tests
+- **🔒 Security Scanning**: npm audit, Snyk vulnerability scanning  
+- **📦 Build & Artifacts**: Application building and artifact management
+- **🚀 Deployment**: Automated deployment to DigitalOcean App Platform
+- **📊 Monitoring**: Health checks and deployment validation
 
 ### DigitalOcean App Platform
 
-The application is designed for deployment on DigitalOcean App Platform:
+Deployment is fully automated via `app.yaml` configuration:
 
-1. **Connect your repository** to DigitalOcean App Platform
-2. **Configure environment variables** in the App Platform dashboard
-3. **Set build command**: `npm run build`
-4. **Set run command**: `npm start`
-5. **Configure database** connection to your DigitalOcean Managed Postgres
+```yaml
+# Production deployment with managed database
+name: resilion-enrichment-preloader
+services:
+  - name: web
+    build_command: ./build.sh
+    run_command: cd apps/web && npm start
+    health_check:
+      http_path: /api/health
+databases:
+  - name: resilion-preloader-db
+    engine: PG
+    version: "15"
+    production: true
+```
 
-### Environment Setup
+### Required Secrets
 
-Ensure all required environment variables are configured in the App Platform dashboard before deployment.
+Configure these secrets in your GitHub repository and DigitalOcean App Platform:
+
+- `DIGITALOCEAN_ACCESS_TOKEN`
+- `DO_APP_ID`
+- `DATABASE_URL`
+- `PINECONE_API_KEY`
+- `OPENAI_API_KEY`
+- `ANTHROPIC_API_KEY`
+- `GOOGLE_API_KEY`
+- `BING_NEWS_API_KEY`
 
 ---
 
-## Testing
+## 📈 Development Workflow
 
-### Unit Tests
+### Git Branching Strategy
+
+- **`main`**: Production-ready code with automated deployment
+- **`develop`**: Integration branch for feature development
+- **`feature/milestone-*`**: Milestone-based feature branches
+- **`feature/ticket-*`**: Individual feature implementations
+
+### Commit Standards
+
+Follow [Conventional Commits](https://www.conventionalcommits.org/):
 
 ```bash
-npm run test
+feat(jobs): add real-time job status updates
+fix(ui): resolve mermaid diagram rendering issue
+docs(readme): update deployment instructions
+test(api): add integration tests for enrichment endpoints
 ```
 
-### Integration Tests
+### Development Milestones
 
-```bash
-npm run test
+- ✅ **Milestone 1**: Database Schema & LLM Integration
+- ✅ **Milestone 2**: Financial Document Processing Engine  
+- ✅ **Milestone 3**: Advanced Enrichment Logic & Job Management
+- ✅ **Milestone 4**: Frontend Scaffolding & Core UI
+- ✅ **Milestone 5**: Frontend Visualization & Data Display
+- 🚀 **Milestone 6**: CI/CD, Deployment & Documentation *(Current)*
+
+---
+
+## 🤝 Contributing
+
+1. **Fork the repository**
+2. **Create a feature branch**: `git checkout -b feature/amazing-feature`
+3. **Make your changes** following the coding standards
+4. **Add tests** for new functionality
+5. **Commit your changes**: `git commit -m 'feat: add amazing feature'`
+6. **Push to the branch**: `git push origin feature/amazing-feature`
+7. **Open a Pull Request**
+
+### Code Quality Standards
+
+- **TypeScript**: Full type safety throughout the application
+- **ESLint**: Consistent code formatting and best practices
+- **Testing**: Comprehensive test coverage for all new features
+- **Documentation**: Clear documentation for all public APIs
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 🆘 Support
+
+- **Documentation**: Check the `/docs` directory for detailed guides
+- **Issues**: Report bugs and feature requests via GitHub Issues
+- **Discussions**: Join project discussions for questions and ideas
+
+---
+
+## 🎉 Acknowledgments
+
+- **shadcn/ui**: Beautiful and accessible UI components
+- **Next.js**: The React framework for production
+- **Mermaid**: Diagram and flowchart generation
+- **DigitalOcean**: Cloud infrastructure and deployment platform
+- **Pinecone**: Vector database for semantic search
+- **OpenAI, Anthropic, Google**: LLM providers for intelligent extraction
+
+---
+
+**Built with ❤️ for the Resilion ecosystem**
