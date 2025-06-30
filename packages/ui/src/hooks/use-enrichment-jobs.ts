@@ -32,7 +32,7 @@ interface UseEnrichmentJobsReturn {
   stats: JobStats
   isLoading: boolean
   error: string | null
-  createJob: (domain: string) => Promise<string | null>
+  createJob: (domain: string, llmUsed?: string) => Promise<string | null>
   startJob: (jobId: string) => Promise<boolean>
   refreshJobs: () => Promise<void>
   getJobById: (jobId: string) => EnrichmentJob | undefined
@@ -112,7 +112,7 @@ export function useEnrichmentJobs(): UseEnrichmentJobsReturn {
     return () => clearInterval(interval)
   }, [jobs])
 
-  const createJob = useCallback(async (domain: string): Promise<string | null> => {
+  const createJob = useCallback(async (domain: string, llmUsed?: string): Promise<string | null> => {
     setIsLoading(true)
     setError(null)
 
@@ -122,7 +122,10 @@ export function useEnrichmentJobs(): UseEnrichmentJobsReturn {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ domain }),
+        body: JSON.stringify({ 
+          domain,
+          ...(llmUsed && { llmUsed })
+        }),
       })
 
       const data = await response.json()

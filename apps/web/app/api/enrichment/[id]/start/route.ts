@@ -5,7 +5,10 @@ import { EnrichmentAgent } from '../../../../../lib/services/enrichment-agent';
 /**
  * API Route: POST /api/enrichment/[id]/start
  * 
- * Starts an enrichment job by ID.
+ * Starts an enrichment job by ID using the existing enrichment agent.
+ * For Milestone 4, we'll use the existing system while the Advanced Orchestrator
+ * integration is completed in a future milestone.
+ * 
  * Returns the updated job status.
  */
 
@@ -45,9 +48,9 @@ export async function POST(
       }, { status: 400 });
     }
 
-    // Start the job asynchronously (don't wait for completion)
+    // Start the job asynchronously using the existing enrichment agent
     // In production, this would typically be handled by a job queue
-    enrichmentAgent.processJob(jobId).catch(error => {
+    enrichmentAgent.processJob(jobId).catch((error: any) => {
       console.error(`Background job ${jobId} failed:`, error);
     });
 

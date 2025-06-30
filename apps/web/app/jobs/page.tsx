@@ -30,7 +30,12 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
 } from "@workspace/ui"
 import { useEnrichmentJobs, cn, JobDebugPanel, DeveloperObservatory } from "@workspace/ui"
 import { extractDomain } from "../../lib/utils/url-utils"
@@ -87,6 +92,7 @@ export default function JobsPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [activeTab, setActiveTab] = useState("All")
   const [domainInput, setDomainInput] = useState("")
+  const [selectedLLM, setSelectedLLM] = useState<string>("gpt-4o")
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null)
   const [deleteJobId, setDeleteJobId] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -121,7 +127,7 @@ export default function JobsPage() {
     // Extract domain from URL if a full URL was provided
     const cleanDomain = extractDomain(domainInput.trim())
     
-    const jobId = await createJob(cleanDomain)
+    const jobId = await createJob(cleanDomain, selectedLLM)
     if (jobId) {
       await startJob(jobId)
       setDomainInput("")
@@ -235,8 +241,8 @@ export default function JobsPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex items-center gap-4">
-                    <div className="flex-1">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
                       <label className="block text-sm font-medium text-foreground mb-2">
                         Company Domain
                       </label>
@@ -247,17 +253,50 @@ export default function JobsPage() {
                         className="w-full"
                       />
                     </div>
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-2">
+                        LLM Model
+                      </label>
+                      <Select value={selectedLLM} onValueChange={setSelectedLLM}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select LLM model" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="gpt-4o">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-green-500" />
+                              GPT-4o (OpenAI)
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="claude-3-opus">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-blue-500" />
+                              Claude 3 Opus (Anthropic)
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="gemini-1.5-pro">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-purple-500" />
+                              Gemini 1.5 Pro (Google)
+                            </div>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <p className="text-sm text-muted-foreground">
+                      This will crawl the company website, extract facts, and prepare them for risk analysis using the selected LLM model.
+                    </p>
                     <Button 
                       onClick={handleStartEnrichment}
-                      className="mt-6"
+                      disabled={!domainInput.trim()}
+                      className="ml-4"
                     >
                       <Play className="h-4 w-4 mr-2" />
                       Start Enrichment
                     </Button>
                   </div>
-                  <p className="text-sm text-muted-foreground mt-2">
-                    This will crawl the company website, extract facts, and prepare them for risk analysis.
-                  </p>
                 </CardContent>
               </Card>
 

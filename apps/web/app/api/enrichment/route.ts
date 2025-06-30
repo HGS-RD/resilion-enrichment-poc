@@ -20,6 +20,7 @@ const CreateJobSchema = z.object({
       (domain) => validateDomain(domain),
       'Invalid domain format'
     ),
+  llmUsed: z.string().optional(),
   metadata: z.record(z.any()).optional().default({})
 });
 
@@ -27,7 +28,7 @@ export async function POST(request: NextRequest) {
   try {
     // Parse and validate request body
     const body = await request.json();
-    const { domain, metadata } = CreateJobSchema.parse(body);
+    const { domain, llmUsed, metadata } = CreateJobSchema.parse(body);
 
     // Initialize repositories and services
     const jobRepository = new JobRepository();
@@ -46,8 +47,8 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Create new job
-    const job = await jobRepository.create(domain, metadata);
+    // Create new job with LLM selection
+    const job = await jobRepository.create(domain, metadata, llmUsed);
 
     return NextResponse.json({
       success: true,
