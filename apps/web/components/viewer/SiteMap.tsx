@@ -77,11 +77,11 @@ export function SiteMap({ sites, onSiteClick, className = '' }: SiteMapProps) {
         
         mapInstanceRef.current = map;
 
-        // Add semi-transparent tile layer
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-          maxZoom: 18,
-          opacity: 0.7 // Semi-transparent
+        // Add neutral greyscale tile layer
+        L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png', {
+          attribution: '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a>, &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors',
+          maxZoom: 20,
+          opacity: 0.8
         }).addTo(map);
 
         // Helper function to get site type icon
