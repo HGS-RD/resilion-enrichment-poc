@@ -19,8 +19,8 @@ export class Tier2Processor implements TierProcessor {
    */
   canHandle(context: EnrichmentContext): boolean {
     // Tier 2 can handle any domain but requires Tier 1 to have completed first
-    return (context.extracted_facts && context.extracted_facts.length > 0) || 
-           (context.step_results && Object.keys(context.step_results).length > 0);
+    return !!(context.extracted_facts && context.extracted_facts.length > 0) || 
+           !!(context.step_results && Object.keys(context.step_results).length > 0);
   }
 
   /**

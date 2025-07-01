@@ -4,7 +4,9 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Badge, Button } from '@workspace/ui/components';
 import { ExternalLink, MapPin, Building2, Users, Globe, Award } from 'lucide-react';
-import { EnrichmentViewerData, OrganizationSummary } from '../../../lib/types/viewer';
+import { EnrichmentViewerData, OrganizationSummary, Site } from '../../../lib/types/viewer';
+import { SiteMap } from '../../../components/viewer/SiteMap';
+import { SiteDetailCard } from '../../../components/viewer/SiteDetailCard';
 
 /**
  * Resilion Enrichment Fact Viewer - Main Page
@@ -89,6 +91,13 @@ export default function ViewerPage() {
   const [data, setData] = useState<EnrichmentViewerData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedSite, setSelectedSite] = useState<Site | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
+  const handleSiteClick = (site: Site) => {
+    setSelectedSite(site);
+    setIsDrawerOpen(true);
+  };
 
   useEffect(() => {
     const fetchOrganizationData = async () => {
@@ -172,7 +181,7 @@ export default function ViewerPage() {
       {/* Organization Overview Card */}
       <OrganizationOverviewCard organization={organizationSummary} />
 
-      {/* Map Placeholder */}
+      {/* Interactive Site Map */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -180,21 +189,14 @@ export default function ViewerPage() {
             Global Site Map
           </CardTitle>
           <CardDescription>
-            Interactive map showing all organization sites worldwide
+            Interactive map showing {data.sites.filter(site => site.latitude && site.longitude).length} geocoded sites worldwide
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="h-96 bg-muted rounded-lg flex items-center justify-center">
-            <div className="text-center space-y-2">
-              <MapPin className="h-12 w-12 mx-auto text-muted-foreground" />
-              <p className="text-muted-foreground">
-                Interactive map will be implemented in Milestone 2
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Will display {data.sites.filter(site => site.latitude && site.longitude).length} geocoded sites
-              </p>
-            </div>
-          </div>
+          <SiteMap 
+            sites={data.sites} 
+            onSiteClick={handleSiteClick}
+          />
         </CardContent>
       </Card>
 
@@ -264,6 +266,13 @@ export default function ViewerPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Site Detail Drawer */}
+      <SiteDetailCard 
+        site={selectedSite}
+        isOpen={isDrawerOpen}
+        onOpenChange={setIsDrawerOpen}
+      />
     </div>
   );
 }
