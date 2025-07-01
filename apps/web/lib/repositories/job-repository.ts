@@ -1,5 +1,6 @@
 import { Pool } from 'pg';
 import { EnrichmentJob, JobStatus, StepStatus, JobRepository as IJobRepository } from '../types/enrichment';
+import { getDatabasePool } from '../utils/database';
 
 /**
  * Job Repository Implementation
@@ -12,10 +13,7 @@ export class JobRepository implements IJobRepository {
   private pool: Pool;
 
   constructor() {
-    this.pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-      ssl: process.env.DATABASE_URL?.includes('sslmode=require') ? { rejectUnauthorized: false } : false,
-    });
+    this.pool = getDatabasePool();
   }
 
   /**

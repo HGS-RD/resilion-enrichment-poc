@@ -245,19 +245,19 @@ export function JobDebugPanel({ jobId, isOpen, onClose }: JobDebugPanelProps) {
                               <div className="space-y-2">
                                 <p className="text-sm text-muted-foreground">Duration</p>
                                 <p className="font-mono text-sm">
-                                  {formatDuration(debugData.summary.total_duration_ms)}
+                                  {formatDuration(debugData.summary?.total_duration_ms || 0)}
                                 </p>
                               </div>
                               <div className="space-y-2">
                                 <p className="text-sm text-muted-foreground">Total Cost</p>
                                 <p className="font-mono text-sm">
-                                  {formatCost(debugData.summary.total_api_cost)}
+                                  {formatCost(debugData.summary?.total_api_cost || 0)}
                                 </p>
                               </div>
                               <div className="space-y-2">
                                 <p className="text-sm text-muted-foreground">Facts Extracted</p>
                                 <p className="font-mono text-sm">
-                                  {debugData.summary.total_facts}
+                                  {debugData.summary?.total_facts || 0}
                                 </p>
                               </div>
                             </div>
@@ -274,7 +274,7 @@ export function JobDebugPanel({ jobId, isOpen, onClose }: JobDebugPanelProps) {
                           </CardHeader>
                           <CardContent>
                             <div className="space-y-4">
-                              {debugData.steps.map((step, index) => (
+                              {(debugData.steps || []).map((step, index) => (
                                 <div key={step.step_name} className="flex items-center gap-4 p-4 border rounded-lg">
                                   <div className="flex items-center gap-2">
                                     {getStepIcon(step.step_name)}
@@ -321,11 +321,11 @@ export function JobDebugPanel({ jobId, isOpen, onClose }: JobDebugPanelProps) {
                                 <p className="text-sm text-muted-foreground">Average Fact Confidence</p>
                                 <div className="flex items-center gap-2">
                                   <Progress 
-                                    value={debugData.summary.avg_confidence * 100} 
+                                    value={(debugData.summary?.avg_confidence || 0) * 100} 
                                     className="flex-1"
                                   />
                                   <span className="text-sm font-mono">
-                                    {(debugData.summary.avg_confidence * 100).toFixed(1)}%
+                                    {((debugData.summary?.avg_confidence || 0) * 100).toFixed(1)}%
                                   </span>
                                 </div>
                               </div>
@@ -333,11 +333,11 @@ export function JobDebugPanel({ jobId, isOpen, onClose }: JobDebugPanelProps) {
                                 <p className="text-sm text-muted-foreground">Average Chunk Quality</p>
                                 <div className="flex items-center gap-2">
                                   <Progress 
-                                    value={debugData.summary.avg_chunk_quality * 100} 
+                                    value={(debugData.summary?.avg_chunk_quality || 0) * 100} 
                                     className="flex-1"
                                   />
                                   <span className="text-sm font-mono">
-                                    {(debugData.summary.avg_chunk_quality * 100).toFixed(1)}%
+                                    {((debugData.summary?.avg_chunk_quality || 0) * 100).toFixed(1)}%
                                   </span>
                                 </div>
                               </div>
@@ -345,11 +345,11 @@ export function JobDebugPanel({ jobId, isOpen, onClose }: JobDebugPanelProps) {
                                 <p className="text-sm text-muted-foreground">Processing Efficiency</p>
                                 <div className="flex items-center gap-2">
                                   <Progress 
-                                    value={Math.min(100, (debugData.summary.total_facts / debugData.summary.total_chunks) * 100)} 
+                                    value={Math.min(100, ((debugData.summary?.total_facts || 0) / (debugData.summary?.total_chunks || 1)) * 100)} 
                                     className="flex-1"
                                   />
                                   <span className="text-sm font-mono">
-                                    {((debugData.summary.total_facts / debugData.summary.total_chunks) * 100).toFixed(1)}%
+                                    {(((debugData.summary?.total_facts || 0) / (debugData.summary?.total_chunks || 1)) * 100).toFixed(1)}%
                                   </span>
                                 </div>
                               </div>
@@ -358,7 +358,7 @@ export function JobDebugPanel({ jobId, isOpen, onClose }: JobDebugPanelProps) {
                         </Card>
 
                         {/* Error Analysis */}
-                        {debugData.errors.length > 0 && (
+                        {(debugData.errors || []).length > 0 && (
                           <Card className="border-destructive/50">
                             <CardHeader>
                               <CardTitle className="flex items-center gap-2 text-destructive">
@@ -368,7 +368,7 @@ export function JobDebugPanel({ jobId, isOpen, onClose }: JobDebugPanelProps) {
                             </CardHeader>
                             <CardContent>
                               <div className="space-y-4">
-                                {debugData.errors.map((error, index) => (
+                                {(debugData.errors || []).map((error, index) => (
                                   <div key={index} className="p-4 border border-destructive/20 rounded-lg bg-destructive/5">
                                     <div className="flex items-center justify-between mb-2">
                                       <Badge variant="destructive">{error.step_name}</Badge>
@@ -396,7 +396,7 @@ export function JobDebugPanel({ jobId, isOpen, onClose }: JobDebugPanelProps) {
 
                 <TabsContent value="prompts" className="h-full">
                   <ScrollArea className="h-full">
-                    {promptData && (
+                    {promptData ? (
                       <div className="space-y-6 p-1">
                         {/* Prompt Summary */}
                         <Card>
@@ -410,19 +410,19 @@ export function JobDebugPanel({ jobId, isOpen, onClose }: JobDebugPanelProps) {
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                               <div className="space-y-2">
                                 <p className="text-sm text-muted-foreground">Total Prompts</p>
-                                <p className="font-mono text-lg">{promptData.summary.total_prompts}</p>
+                                <p className="font-mono text-lg">{promptData.summary?.total_prompts || 0}</p>
                               </div>
                               <div className="space-y-2">
                                 <p className="text-sm text-muted-foreground">Total Tokens</p>
-                                <p className="font-mono text-lg">{promptData.summary.total_tokens.toLocaleString()}</p>
+                                <p className="font-mono text-lg">{(promptData.summary?.total_tokens || 0).toLocaleString()}</p>
                               </div>
                               <div className="space-y-2">
                                 <p className="text-sm text-muted-foreground">Total Cost</p>
-                                <p className="font-mono text-lg">{formatCost(promptData.summary.total_cost)}</p>
+                                <p className="font-mono text-lg">{formatCost(promptData.summary?.total_cost || 0)}</p>
                               </div>
                               <div className="space-y-2">
                                 <p className="text-sm text-muted-foreground">Avg Response Time</p>
-                                <p className="font-mono text-lg">{formatDuration(promptData.summary.avg_response_time)}</p>
+                                <p className="font-mono text-lg">{formatDuration(promptData.summary?.avg_response_time || 0)}</p>
                               </div>
                             </div>
                           </CardContent>
@@ -435,7 +435,7 @@ export function JobDebugPanel({ jobId, isOpen, onClose }: JobDebugPanelProps) {
                           </CardHeader>
                           <CardContent>
                             <div className="space-y-4">
-                              {promptData.prompts.map((prompt, index) => (
+                              {(promptData.prompts || []).map((prompt, index) => (
                                 <div key={prompt.id} className="border rounded-lg">
                                   <Button
                                     variant="ghost"
@@ -505,13 +505,21 @@ export function JobDebugPanel({ jobId, isOpen, onClose }: JobDebugPanelProps) {
                           </CardContent>
                         </Card>
                       </div>
+                    ) : (
+                      <div className="flex items-center justify-center h-96">
+                        <div className="text-center">
+                          <AlertTriangle className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                          <p className="text-sm text-muted-foreground">Prompt data not available</p>
+                          <p className="text-xs text-muted-foreground mt-1">Advanced observability features are not yet implemented</p>
+                        </div>
+                      </div>
                     )}
                   </ScrollArea>
                 </TabsContent>
 
                 <TabsContent value="chunks" className="h-full">
                   <ScrollArea className="h-full">
-                    {chunkData && (
+                    {chunkData ? (
                       <div className="space-y-6 p-1">
                         {/* Chunk Summary */}
                         <Card>
@@ -525,19 +533,19 @@ export function JobDebugPanel({ jobId, isOpen, onClose }: JobDebugPanelProps) {
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                               <div className="space-y-2">
                                 <p className="text-sm text-muted-foreground">Total Chunks</p>
-                                <p className="font-mono text-lg">{chunkData.analytics.total_chunks}</p>
+                                <p className="font-mono text-lg">{chunkData.analytics?.total_chunks || 0}</p>
                               </div>
                               <div className="space-y-2">
                                 <p className="text-sm text-muted-foreground">Avg Length</p>
-                                <p className="font-mono text-lg">{Math.round(chunkData.analytics.avg_content_length)} chars</p>
+                                <p className="font-mono text-lg">{Math.round(chunkData.analytics?.avg_content_length || 0)} chars</p>
                               </div>
                               <div className="space-y-2">
                                 <p className="text-sm text-muted-foreground">Avg Quality</p>
-                                <p className="font-mono text-lg">{(chunkData.analytics.avg_quality_score * 100).toFixed(1)}%</p>
+                                <p className="font-mono text-lg">{((chunkData.analytics?.avg_quality_score || 0) * 100).toFixed(1)}%</p>
                               </div>
                               <div className="space-y-2">
                                 <p className="text-sm text-muted-foreground">Unique Sources</p>
-                                <p className="font-mono text-lg">{chunkData.analytics.unique_sources}</p>
+                                <p className="font-mono text-lg">{chunkData.analytics?.unique_sources || 0}</p>
                               </div>
                             </div>
                           </CardContent>
@@ -555,24 +563,24 @@ export function JobDebugPanel({ jobId, isOpen, onClose }: JobDebugPanelProps) {
                                   <div className="w-3 h-3 rounded-full bg-success"></div>
                                   <span className="text-sm">High Quality (≥80%)</span>
                                 </div>
-                                <Progress value={(chunkData.analytics.high_quality_chunks / chunkData.analytics.total_chunks) * 100} className="flex-1" />
-                                <span className="text-sm font-mono">{chunkData.analytics.high_quality_chunks}</span>
+                                <Progress value={((chunkData.analytics?.high_quality_chunks || 0) / (chunkData.analytics?.total_chunks || 1)) * 100} className="flex-1" />
+                                <span className="text-sm font-mono">{chunkData.analytics?.high_quality_chunks || 0}</span>
                               </div>
                               <div className="flex items-center gap-4">
                                 <div className="flex items-center gap-2">
                                   <div className="w-3 h-3 rounded-full bg-warning"></div>
                                   <span className="text-sm">Medium Quality (60-80%)</span>
                                 </div>
-                                <Progress value={(chunkData.analytics.medium_quality_chunks / chunkData.analytics.total_chunks) * 100} className="flex-1" />
-                                <span className="text-sm font-mono">{chunkData.analytics.medium_quality_chunks}</span>
+                                <Progress value={((chunkData.analytics?.medium_quality_chunks || 0) / (chunkData.analytics?.total_chunks || 1)) * 100} className="flex-1" />
+                                <span className="text-sm font-mono">{chunkData.analytics?.medium_quality_chunks || 0}</span>
                               </div>
                               <div className="flex items-center gap-4">
                                 <div className="flex items-center gap-2">
                                   <div className="w-3 h-3 rounded-full bg-destructive"></div>
                                   <span className="text-sm">Low Quality ({"<"}60%)</span>
                                 </div>
-                                <Progress value={(chunkData.analytics.low_quality_chunks / chunkData.analytics.total_chunks) * 100} className="flex-1" />
-                                <span className="text-sm font-mono">{chunkData.analytics.low_quality_chunks}</span>
+                                <Progress value={((chunkData.analytics?.low_quality_chunks || 0) / (chunkData.analytics?.total_chunks || 1)) * 100} className="flex-1" />
+                                <span className="text-sm font-mono">{chunkData.analytics?.low_quality_chunks || 0}</span>
                               </div>
                             </div>
                           </CardContent>
@@ -595,7 +603,7 @@ export function JobDebugPanel({ jobId, isOpen, onClose }: JobDebugPanelProps) {
                                 </TableRow>
                               </TableHeader>
                               <TableBody>
-                                {chunkData.sources.map((source, index) => (
+                                {(chunkData.sources || []).map((source, index) => (
                                   <TableRow key={index}>
                                     <TableCell className="font-mono text-xs max-w-xs truncate">
                                       {source.source_url}
@@ -614,6 +622,14 @@ export function JobDebugPanel({ jobId, isOpen, onClose }: JobDebugPanelProps) {
                             </Table>
                           </CardContent>
                         </Card>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center h-96">
+                        <div className="text-center">
+                          <AlertTriangle className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                          <p className="text-sm text-muted-foreground">Chunk data not available</p>
+                          <p className="text-xs text-muted-foreground mt-1">Advanced observability features are not yet implemented</p>
+                        </div>
                       </div>
                     )}
                   </ScrollArea>
@@ -635,26 +651,26 @@ export function JobDebugPanel({ jobId, isOpen, onClose }: JobDebugPanelProps) {
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                               <div className="space-y-2">
                                 <p className="text-sm text-muted-foreground">Total Duration</p>
-                                <p className="text-2xl font-bold">{formatDuration(debugData.summary.total_duration_ms)}</p>
+                                <p className="text-2xl font-bold">{formatDuration(debugData.summary?.total_duration_ms || 0)}</p>
                               </div>
                               <div className="space-y-2">
                                 <p className="text-sm text-muted-foreground">Avg Response Time</p>
-                                <p className="text-2xl font-bold">{formatDuration(debugData.summary.avg_response_time)}</p>
+                                <p className="text-2xl font-bold">{formatDuration(debugData.summary?.avg_response_time || 0)}</p>
                               </div>
                               <div className="space-y-2">
                                 <p className="text-sm text-muted-foreground">Total Tokens</p>
-                                <p className="text-2xl font-bold">{debugData.summary.total_tokens_used.toLocaleString()}</p>
+                                <p className="text-2xl font-bold">{(debugData.summary?.total_tokens_used || 0).toLocaleString()}</p>
                               </div>
                               <div className="space-y-2">
                                 <p className="text-sm text-muted-foreground">Total Cost</p>
-                                <p className="text-2xl font-bold">{formatCost(debugData.summary.total_api_cost)}</p>
+                                <p className="text-2xl font-bold">{formatCost(debugData.summary?.total_api_cost || 0)}</p>
                               </div>
                             </div>
                           </CardContent>
                         </Card>
 
                         {/* Performance Metrics */}
-                        {debugData.metrics.length > 0 && (
+                        {(debugData.metrics || []).length > 0 && (
                           <Card>
                             <CardHeader>
                               <CardTitle>Detailed Metrics</CardTitle>
@@ -671,7 +687,7 @@ export function JobDebugPanel({ jobId, isOpen, onClose }: JobDebugPanelProps) {
                                   </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                  {debugData.metrics.map((metric, index) => (
+                                  {(debugData.metrics || []).map((metric, index) => (
                                     <TableRow key={index}>
                                       <TableCell>
                                         <Badge variant="outline">{metric.metric_type}</Badge>
@@ -707,7 +723,7 @@ export function JobDebugPanel({ jobId, isOpen, onClose }: JobDebugPanelProps) {
                           </CardHeader>
                           <CardContent>
                             <div className="space-y-2">
-                              {debugData.logs.map((log, index) => (
+                              {(debugData.logs || []).map((log, index) => (
                                 <div key={index} className={cn(
                                   "p-3 rounded-lg border text-sm",
                                   log.log_level === 'error' && "border-destructive/50 bg-destructive/5",

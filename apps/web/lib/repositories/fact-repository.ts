@@ -1,5 +1,6 @@
 import { Pool } from 'pg';
 import { EnrichmentFact, FactRepository as IFactRepository } from '../types/enrichment';
+import { getDatabasePool } from '../utils/database';
 
 /**
  * Fact Repository Implementation
@@ -12,10 +13,7 @@ export class FactRepository implements IFactRepository {
   private pool: Pool;
 
   constructor() {
-    this.pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-    });
+    this.pool = getDatabasePool();
   }
 
   /**

@@ -109,7 +109,7 @@ export class EnrichmentAgent {
    * Builds the processing chain with all enrichment steps
    */
   private buildProcessingChain(): EnrichmentChain {
-    const chain = new ProcessingChain();
+    const chain = new ProcessingChain(this.jobRepository);
 
     // Add steps in order
     chain
@@ -170,6 +170,11 @@ export class EnrichmentAgent {
  */
 class ProcessingChain implements EnrichmentChain {
   private steps: EnrichmentStep[] = [];
+  private jobRepository: JobRepository;
+
+  constructor(jobRepository: JobRepository) {
+    this.jobRepository = jobRepository;
+  }
 
   addStep(step: EnrichmentStep): EnrichmentChain {
     this.steps.push(step);
@@ -179,11 +184,16 @@ class ProcessingChain implements EnrichmentChain {
   async execute(context: EnrichmentContext): Promise<EnrichmentContext> {
     let currentContext = { ...context };
 
+    // Execute steps sequentially - each step must complete before the next can start
     for (const step of this.steps) {
       try {
+        console.log(`Checking if step ${step.name} can handle current context`);
+        
         // Check if step can handle the current context
         if (!step.canHandle(currentContext)) {
-          console.log(`Skipping step ${step.name} - cannot handle current context`);
+          console.log(`Step ${step.name} cannot handle current context - dependencies not met`);
+          // Don't skip - this means the pipeline is not ready for this step yet
+          // This could indicate an error in the previous steps
           continue;
         }
 
@@ -191,6 +201,12 @@ class ProcessingChain implements EnrichmentChain {
         
         // Execute the step
         currentContext = await step.execute(currentContext);
+
+        // Refresh job state from database after each step
+        const updatedJob = await this.jobRepository.findById(currentContext.job.id);
+        if (updatedJob) {
+          currentContext.job = updatedJob;
+        }
 
         // Check for errors after step execution
         if (currentContext.error) {

@@ -97,6 +97,9 @@ export default function JobsPage() {
   const [deleteJobId, setDeleteJobId] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [debugJobId, setDebugJobId] = useState<string | null>(null)
+  const [selectedJobIds, setSelectedJobIds] = useState<string[]>([])
+  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false)
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false)
   
   const { 
     jobs, 
@@ -156,6 +159,45 @@ export default function JobsPage() {
     setSelectedJobId(jobId)
     // Fetch activities when job is selected
     setTimeout(fetchActivities, 100)
+  }
+
+  // Selection handlers
+  const handleSelectRow = (jobId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedJobIds(prev => [...prev, jobId])
+    } else {
+      setSelectedJobIds(prev => prev.filter(id => id !== jobId))
+    }
+  }
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedJobIds(filteredJobs.map(job => job.id))
+    } else {
+      setSelectedJobIds([])
+    }
+  }
+
+  const isAllSelected = filteredJobs.length > 0 && selectedJobIds.length === filteredJobs.length
+  const isIndeterminate = selectedJobIds.length > 0 && selectedJobIds.length < filteredJobs.length
+
+  // Bulk delete handlers
+  const handleBulkDelete = async () => {
+    if (selectedJobIds.length === 0) return
+    
+    setIsBulkDeleting(true)
+    try {
+      // For now, delete jobs one by one (we'll create bulk API later)
+      for (const jobId of selectedJobIds) {
+        await deleteJob(jobId)
+      }
+      setSelectedJobIds([])
+      setShowBulkDeleteDialog(false)
+    } catch (error) {
+      console.error('Failed to bulk delete jobs:', error)
+    } finally {
+      setIsBulkDeleting(false)
+    }
   }
 
   const formatDateTime = (dateString: string) => {
@@ -334,6 +376,17 @@ export default function JobsPage() {
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle>Recent Enrichment Jobs</CardTitle>
                   <div className="flex items-center gap-2">
+                    {selectedJobIds.length > 0 && (
+                      <Button 
+                        variant="destructive" 
+                        size="sm"
+                        onClick={() => setShowBulkDeleteDialog(true)}
+                        className="mr-2"
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete ({selectedJobIds.length})
+                      </Button>
+                    )}
                     <Button variant="ghost" size="sm">
                       <Filter className="h-4 w-4" />
                     </Button>
@@ -349,6 +402,17 @@ export default function JobsPage() {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead className="w-12">
+                          <input
+                            type="checkbox"
+                            checked={isAllSelected}
+                            ref={(el) => {
+                              if (el) el.indeterminate = isIndeterminate
+                            }}
+                            onChange={(e) => handleSelectAll(e.target.checked)}
+                            className="rounded border-gray-300 text-primary focus:ring-primary"
+                          />
+                        </TableHead>
                         <TableHead>Domain</TableHead>
                         <TableHead>Job ID</TableHead>
                         <TableHead>Status</TableHead>
@@ -364,9 +428,18 @@ export default function JobsPage() {
                           key={job.id}
                           className={cn(
                             "hover:bg-muted/50 transition-colors",
-                            selectedJobId === job.id && "bg-primary/5 border-primary/20"
+                            selectedJobId === job.id && "bg-primary/5 border-primary/20",
+                            selectedJobIds.includes(job.id) && "bg-blue-50 dark:bg-blue-950/20"
                           )}
                         >
+                          <TableCell>
+                            <input
+                              type="checkbox"
+                              checked={selectedJobIds.includes(job.id)}
+                              onChange={(e) => handleSelectRow(job.id, e.target.checked)}
+                              className="rounded border-gray-300 text-primary focus:ring-primary"
+                            />
+                          </TableCell>
                           <TableCell className="font-medium">{job.domain}</TableCell>
                           <TableCell className="font-mono text-sm text-muted-foreground">{job.id}</TableCell>
                           <TableCell>
@@ -387,37 +460,26 @@ export default function JobsPage() {
                           </TableCell>
                           <TableCell className="font-medium">{job.factsFound}</TableCell>
                           <TableCell>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => window.open(`/jobs/${job.id}`, '_blank')}>
-                                  <FileText className="h-4 w-4 mr-2" />
-                                  View Details
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleSelectJob(job.id)}>
-                                  <Eye className="h-4 w-4 mr-2" />
-                                  Monitor Activity
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => setDebugJobId(job.id)}>
-                                  <Code2 className="h-4 w-4 mr-2" />
-                                  Debug Panel
-                                </DropdownMenuItem>
-                                <DropdownMenuItem 
-                                  onClick={() => {
-                                    console.log('Delete clicked for job:', job.id)
-                                    setDeleteJobId(job.id)
-                                  }}
-                                  className="text-destructive focus:text-destructive"
-                                >
-                                  <Trash2 className="h-4 w-4 mr-2" />
-                                  Delete Job
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                            <div className="flex items-center gap-1">
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="h-8 w-8 p-0"
+                                onClick={() => window.open(`/jobs/${job.id}`, '_blank')}
+                                title="View Details"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                                onClick={() => setDeleteJobId(job.id)}
+                                title="Delete Job"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -515,6 +577,109 @@ export default function JobsPage() {
                   <>
                     <Trash2 className="h-4 w-4 mr-2" />
                     Delete Permanently
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Delete Confirmation Dialog */}
+      {showBulkDeleteDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-black/80" 
+            onClick={() => setShowBulkDeleteDialog(false)}
+          />
+          
+          {/* Modal Content */}
+          <div className="relative bg-background border rounded-lg shadow-lg w-full max-w-2xl mx-4 p-6">
+            {/* Header */}
+            <div className="flex items-center gap-2 text-destructive mb-4">
+              <Trash2 className="h-5 w-5" />
+              <h2 className="text-lg font-semibold">Delete Multiple Enrichment Jobs</h2>
+            </div>
+            
+            {/* Description */}
+            <p className="text-sm text-muted-foreground mb-4">
+              This action cannot be undone. You are about to permanently delete <strong>{selectedJobIds.length}</strong> enrichment jobs and all their associated data.
+            </p>
+            
+            {/* Selected Jobs List */}
+            <div className="mb-4 p-4 bg-muted rounded-lg max-h-60 overflow-y-auto">
+              <p className="text-sm font-medium text-foreground mb-3">Jobs to be deleted:</p>
+              <div className="space-y-2">
+                {selectedJobIds.map(jobId => {
+                  const job = jobs.find(j => j.id === jobId)
+                  return (
+                    <div key={jobId} className="flex items-center justify-between p-2 bg-background rounded border">
+                      <div>
+                        <p className="text-sm font-medium">{job?.domain || 'Unknown'}</p>
+                        <p className="text-xs text-muted-foreground font-mono">{jobId}</p>
+                      </div>
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${
+                        job?.status === 'completed' ? 'bg-success/10 text-success border-success/20' :
+                        job?.status === 'running' ? 'bg-info/10 text-info border-info/20' :
+                        job?.status === 'pending' ? 'bg-warning/10 text-warning border-warning/20' :
+                        'bg-destructive/10 text-destructive border-destructive/20'
+                      }`}>
+                        {job?.status?.charAt(0).toUpperCase()}{job?.status?.slice(1)}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+            
+            {/* Data Impact Warning */}
+            <div className="mb-4 p-3 bg-destructive/5 border border-destructive/20 rounded-lg">
+              <p className="text-sm font-medium text-destructive mb-2">This will permanently delete:</p>
+              <ul className="space-y-1 text-sm text-destructive">
+                <li className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-destructive" />
+                  All job execution history and logs
+                </li>
+                <li className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-destructive" />
+                  Crawled web pages and content
+                </li>
+                <li className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-destructive" />
+                  Text chunks and embeddings
+                </li>
+                <li className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-destructive" />
+                  Extracted facts and analysis results
+                </li>
+                <li className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-destructive" />
+                  Vector database entries
+                </li>
+              </ul>
+            </div>
+            
+            {/* Footer */}
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
+              <Button variant="outline" onClick={() => setShowBulkDeleteDialog(false)}>
+                Cancel
+              </Button>
+              <Button 
+                variant="destructive" 
+                onClick={handleBulkDelete}
+                disabled={isBulkDeleting}
+                className="mb-2 sm:mb-0"
+              >
+                {isBulkDeleting ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    Deleting {selectedJobIds.length} jobs...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete {selectedJobIds.length} Jobs Permanently
                   </>
                 )}
               </Button>

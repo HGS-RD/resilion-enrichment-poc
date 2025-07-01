@@ -7,7 +7,8 @@ import {
   LayoutDashboard, 
   Briefcase, 
   FileText,
-  Settings
+  Settings,
+  Eye
 } from "lucide-react"
 import { ThemeToggle } from "./theme-toggle"
 import { useEnrichmentJobs } from "@workspace/ui"
@@ -27,6 +28,11 @@ const navigation = [
     name: "Fact Viewer",
     href: "/facts",
     icon: FileText
+  },
+  {
+    name: "Organization Viewer",
+    href: "/viewer/stepan.com",
+    icon: Eye
   },
   {
     name: "Settings",

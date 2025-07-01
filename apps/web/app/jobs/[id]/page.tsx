@@ -21,6 +21,10 @@ import {
   DialogTitle,
   FactCard,
   MermaidWorkflow,
+  LiveMetricsPanel,
+  ActivityFeedPanel,
+  DataFlowPanel,
+  DebugConsolePanel,
   useJobDetails, 
   getJobStatusColor, 
   formatDuration, 
@@ -241,6 +245,24 @@ export default function JobDetailPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Developer Observatory - Always Visible */}
+      <div className="space-y-6">
+        <div className="flex items-center gap-2 mb-4">
+          <h2 className="text-xl font-semibold text-foreground">Developer Observatory</h2>
+          <Badge variant="outline" className="text-xs">
+            Real-time Monitoring
+          </Badge>
+        </div>
+        
+        {/* Observatory Panels Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <LiveMetricsPanel jobId={jobId} className="min-h-[300px]" />
+          <ActivityFeedPanel jobId={jobId} className="min-h-[300px]" />
+          <DataFlowPanel jobId={jobId} className="min-h-[300px]" />
+          <DebugConsolePanel jobId={jobId} className="min-h-[300px]" />
+        </div>
+      </div>
 
       {/* Main Content Tabs */}
       <Tabs defaultValue="workflow" className="space-y-6">

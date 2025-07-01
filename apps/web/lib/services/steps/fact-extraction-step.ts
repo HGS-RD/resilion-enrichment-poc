@@ -37,16 +37,17 @@ export class FactExtractionStep extends BaseEnrichmentStep {
   }
 
   canHandle(context: EnrichmentContext): boolean {
-    // Can handle if embedding is completed and extraction hasn't been completed
+    // Can handle if chunking is completed and extraction hasn't been completed
+    // We don't require embeddings to be completed - we can work with text chunks directly
     return !!(
       context.job && 
-      context.job.embedding_status === 'completed' &&
+      context.job.chunking_status === 'completed' &&
       (context.job.extraction_status === undefined || 
        context.job.extraction_status === null || 
        context.job.extraction_status === 'pending' || 
        context.job.extraction_status === 'failed') &&
-      context.embeddings &&
-      context.embeddings.length > 0
+      context.text_chunks &&
+      context.text_chunks.length > 0
     );
   }
 
@@ -162,6 +163,8 @@ export class FactExtractionStep extends BaseEnrichmentStep {
       );
 
       console.log(`Extracting facts from ${chunks.length} chunks for domain: ${job.domain}`);
+      console.log('System prompt:', systemPrompt.substring(0, 200) + '...');
+      console.log('User prompt:', userPrompt.substring(0, 200) + '...');
 
       // Use AI SDK for structured extraction
       const extractionResult = await this.callAISDK(systemPrompt, userPrompt, schema);

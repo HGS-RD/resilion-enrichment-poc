@@ -20,7 +20,7 @@ export class EmbeddingStep extends BaseEnrichmentStep {
     // Default embedding configuration
     this.config = {
       model: process.env.EMBEDDING_MODEL || 'text-embedding-3-small',
-      dimensions: parseInt(process.env.EMBEDDING_DIMENSIONS || '1536'),
+      dimensions: parseInt(process.env.EMBEDDING_DIMENSIONS || '1024'),
       batch_size: parseInt(process.env.EMBEDDING_BATCH_SIZE || '10')
     };
 
@@ -245,7 +245,8 @@ export class EmbeddingStep extends BaseEnrichmentStep {
         body: JSON.stringify({
           model: this.config.model,
           input: texts,
-          encoding_format: 'float'
+          encoding_format: 'float',
+          dimensions: this.config.dimensions
         })
       });
 

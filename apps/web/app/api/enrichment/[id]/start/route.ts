@@ -1,110 +1,130 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { JobRepository } from '../../../../../lib/repositories/job-repository';
-import { JobLifecycleManager } from '../../../../../lib/services/job-lifecycle-manager';
-
-/**
- * API Route: POST /api/enrichment/[id]/start
- * 
- * Starts an enrichment job by ID using proper job lifecycle management.
- * This provides step-by-step progress tracking with realistic timing.
- * 
- * Returns the updated job status.
- */
+import { PostgresOrganizationRepository } from '../../../../../lib/repositories/organization-repository';
+import { PostgresSiteRepository } from '../../../../../lib/repositories/site-repository';
+import { UnifiedEnrichmentOrchestrator } from '../../../../../lib/services/unified-enrichment-orchestrator';
+import { getDatabasePool } from '../../../../../lib/utils/database';
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
-    const jobId = id;
-
+    const { id: jobId } = await params;
+    
     if (!jobId) {
       return NextResponse.json({
-        error: 'Validation error',
-        message: 'Job ID is required'
+        error: 'Job ID is required'
       }, { status: 400 });
     }
 
-    // Initialize repositories and services
     const jobRepository = new JobRepository();
-    const jobLifecycleManager = new JobLifecycleManager();
-
+    
     // Check if job exists
     const job = await jobRepository.findById(jobId);
     if (!job) {
       return NextResponse.json({
-        error: 'Not found',
-        message: 'Job not found'
+        error: 'Job not found'
       }, { status: 404 });
     }
 
-    // Check if job is in a startable state
-    if (job.status !== 'pending') {
+    // Check if job is already running or completed
+    if (job.status === 'running') {
       return NextResponse.json({
-        error: 'Invalid state',
-        message: `Job cannot be started from status: ${job.status}`
-      }, { status: 400 });
+        success: true,
+        message: 'Job is already running',
+        job: job
+      });
     }
 
-    // Start the job asynchronously with proper lifecycle management
-    jobLifecycleManager.startJob(jobId, job.domain, async (context) => {
-      console.log(`Starting enrichment job ${jobId} for domain ${job.domain}`);
-      
+    if (job.status === 'completed') {
+      return NextResponse.json({
+        success: true,
+        message: 'Job is already completed',
+        job: job
+      });
+    }
+
+    // Process job asynchronously using the Advanced Enrichment Orchestrator
+    setImmediate(async () => {
       try {
-        // Step 1: Web Crawling (5-10 seconds)
-        await jobRepository.updateStepStatus(jobId, 'crawling_status', 'running');
-        await new Promise(resolve => setTimeout(resolve, 5000 + Math.random() * 5000));
-        await jobRepository.updateStepStatus(jobId, 'crawling_status', 'completed');
-        await jobRepository.updateProgress(jobId, { pages_crawled: 3 + Math.floor(Math.random() * 5) });
+        console.log(`Starting advanced multi-tiered enrichment process for job ${jobId} (domain: ${job.domain})`);
         
-        // Step 2: Text Chunking (3-5 seconds)
-        await jobRepository.updateStepStatus(jobId, 'chunking_status', 'running');
-        await new Promise(resolve => setTimeout(resolve, 3000 + Math.random() * 2000));
-        await jobRepository.updateStepStatus(jobId, 'chunking_status', 'completed');
-        await jobRepository.updateProgress(jobId, { chunks_created: 15 + Math.floor(Math.random() * 10) });
+        // Initialize database connection and repositories for advanced orchestrator
+        const db = getDatabasePool();
+        const orgRepository = new PostgresOrganizationRepository(db);
+        const siteRepository = new PostgresSiteRepository(db);
         
-        // Step 3: Embeddings (8-12 seconds)
-        await jobRepository.updateStepStatus(jobId, 'embedding_status', 'running');
-        await new Promise(resolve => setTimeout(resolve, 8000 + Math.random() * 4000));
-        await jobRepository.updateStepStatus(jobId, 'embedding_status', 'completed');
-        await jobRepository.updateProgress(jobId, { embeddings_generated: 15 + Math.floor(Math.random() * 10) });
+        // Create a mock EnrichmentJobRecordRepository (we'll use the existing JobRepository for now)
+        const jobRecordRepository = {
+          create: async (jobData: any) => jobData,
+          findById: async (id: string) => null,
+          findByDomain: async (domain: string) => [],
+          findByStatus: async (status: string) => [],
+          update: async (id: string, updates: any) => updates,
+          delete: async (id: string) => {},
+          getJobStats: async () => ({ total: 0, completed: 0, failed: 0, pending: 0, running: 0, averageProcessingTime: 0 })
+        };
         
-        // Step 4: Fact Extraction (10-15 seconds)
-        await jobRepository.updateStepStatus(jobId, 'extraction_status', 'running');
-        await new Promise(resolve => setTimeout(resolve, 10000 + Math.random() * 5000));
-        await jobRepository.updateStepStatus(jobId, 'extraction_status', 'completed');
-        await jobRepository.updateProgress(jobId, { facts_extracted: 8 + Math.floor(Math.random() * 12) });
+        // Initialize the unified orchestrator with multi-tiered processing
+        const orchestrator = new UnifiedEnrichmentOrchestrator(
+          orgRepository,
+          siteRepository,
+          jobRecordRepository,
+          jobRepository,
+          {
+            confidence_threshold: 0.7,
+            max_job_runtime_minutes: 30,
+            max_retries_per_tier: 3,
+            stop_on_confidence_threshold: true,
+            enable_tier_1: true,  // Corporate Website + Financial Reports
+            enable_tier_2: true,  // LinkedIn, Job Postings
+            enable_tier_3: true,  // News Articles
+            retryConfig: {
+              maxRetries: 3,
+              baseDelayMs: 1000,
+              maxDelayMs: 60000,
+              exponentialBase: 2
+            },
+            cleanupIntervalMs: 60000,
+            heartbeatIntervalMs: 30000
+          }
+        );
         
-        // Complete the job
-        await jobRepository.updateStatus(jobId, 'completed');
-        console.log(`Job ${jobId} completed successfully`);
+        console.log(`Advanced orchestrator initialized for job ${jobId} with all tiers enabled`);
         
+        // Execute the advanced enrichment with multi-tiered data sourcing
+        const result = await orchestrator.executeEnrichment(job);
+        
+        if (result.final_status === 'completed') {
+          console.log(`Advanced enrichment process completed successfully for job ${jobId}`);
+          console.log(`Results: ${result.total_facts_extracted} facts extracted, confidence: ${result.average_confidence.toFixed(3)}`);
+          console.log(`Tiers completed: ${result.tiers_completed.length}, Runtime: ${result.total_runtime_seconds}s`);
+          console.log(`Stop reason: ${result.stop_reason || 'completed normally'}`);
+        } else {
+          console.error(`Advanced enrichment process failed for job ${jobId}, status: ${result.final_status}`);
+          if (result.stop_reason) {
+            console.error(`Stop reason: ${result.stop_reason}`);
+          }
+        }
       } catch (error) {
-        console.error(`Job ${jobId} failed during execution:`, error);
-        await jobRepository.updateStatus(jobId, 'failed');
-        await jobRepository.logError(jobId, error instanceof Error ? error.message : 'Unknown error');
-        throw error;
+        console.error(`Error in advanced enrichment process for job ${jobId}:`, error);
+        // Log the error to the job record
+        try {
+          await jobRepository.logError(jobId, error instanceof Error ? error.message : 'Unknown error in advanced enrichment process');
+        } catch (logError) {
+          console.error('Failed to log enrichment error:', logError);
+        }
       }
-    }).catch((error: any) => {
-      console.error(`Background job ${jobId} failed:`, error);
     });
 
-    // Return immediately with running status
+    // Update job status to running
     await jobRepository.updateStatus(jobId, 'running');
-    
-    // Initialize step statuses for proper progress tracking
-    await jobRepository.updateStepStatus(jobId, 'crawling_status', 'pending');
-    await jobRepository.updateStepStatus(jobId, 'chunking_status', 'pending');
-    await jobRepository.updateStepStatus(jobId, 'embedding_status', 'pending');
-    await jobRepository.updateStepStatus(jobId, 'extraction_status', 'pending');
-    
-    const updatedJob = await jobRepository.findById(jobId);
 
     return NextResponse.json({
       success: true,
-      job: updatedJob,
-      message: 'Job started successfully'
+      message: 'Job started successfully',
+      jobId: jobId
     });
 
   } catch (error) {

@@ -59,6 +59,7 @@ export interface CrawledPage {
   url: string;
   title: string;
   content: string;
+  rawHtml?: string; // Optional raw HTML for URL extraction
   metadata: {
     crawled_at: string;
     status_code: number;

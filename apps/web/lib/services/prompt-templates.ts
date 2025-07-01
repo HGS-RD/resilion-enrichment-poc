@@ -64,19 +64,27 @@ Always respond with valid JSON matching the specified schema.`,
 CONTENT TO ANALYZE:
 {content}
 
-REQUIRED JSON SCHEMA:
+REQUIRED JSON SCHEMA - YOU MUST INCLUDE ALL FIELDS:
 {
   "facts": [
     {
-      "fact_type": "string (one of: company_info, product, service, location, contact, person, technology, metric, certification, partnership, capability)",
+      "fact_type": "MUST be one of: company_info, product, service, location, contact, person, technology, metric, certification, partnership, capability",
       "fact_data": {
-        "key": "value pairs with the actual fact information"
+        "REQUIRED": "object with key-value pairs containing the actual fact information - NEVER leave this empty"
       },
       "confidence_score": "number between 0.7 and 1.0",
       "source_text": "specific text snippet that supports this fact (max 200 chars)"
     }
   ]
 }
+
+CRITICAL REQUIREMENTS:
+1. ALWAYS include the "fact_data" object with relevant key-value pairs
+2. Use ONLY the allowed fact_type values listed above
+3. For company_info: include fields like name, industry, description, founded, etc.
+4. For location: include fields like address, city, state, headquarters, etc.
+5. For contact: include fields like phone, email, address, etc.
+6. For service: include fields like name, description, category, etc.
 
 Extract facts now:`,
 

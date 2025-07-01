@@ -1,121 +1,95 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { JobRepository } from '../../../../../lib/repositories/job-repository'
 
-const jobRepository = new JobRepository()
-
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params
-    const jobId = id
-
-    // Check if job exists
-    const job = await jobRepository.findById(jobId)
+    const { id: jobId } = await params
+    const jobRepo = new JobRepository()
+    
+    // Get job details
+    const job = await jobRepo.findById(jobId)
     if (!job) {
-      return NextResponse.json(
-        { success: false, message: 'Job not found' },
-        { status: 404 }
-      )
+      return NextResponse.json({ error: 'Job not found' }, { status: 404 })
     }
 
     // Calculate metrics based on job data
-    const startTime = new Date(job.started_at || job.created_at)
-    const currentTime = new Date()
-    const elapsedTime = currentTime.getTime() - startTime.getTime()
-    const elapsedMinutes = Math.floor(elapsedTime / (1000 * 60))
-    const elapsedSeconds = Math.floor(elapsedTime / 1000)
+    const now = new Date()
+    const startTime = job.started_at ? new Date(job.started_at) : new Date(job.created_at)
+    const elapsedTimeMs = now.getTime() - startTime.getTime()
+    const elapsedTimeSeconds = Math.floor(elapsedTimeMs / 1000)
 
-    // Calculate processing speed (pages per minute)
-    const processingSpeed = elapsedMinutes > 0 ? 
-      Math.round((job.pages_crawled / elapsedMinutes) * 10) / 10 : 0
-
-    // Estimate API cost based on pages crawled and embeddings
-    const estimatedApiCost = (job.pages_crawled * 0.002) + (job.embeddings_generated * 0.0001)
-
-    // Calculate token usage estimate
-    const avgTokensPerPage = 1500
-    const tokenUsage = job.pages_crawled * avgTokensPerPage
-
-    // Calculate completion percentage
-    const totalSteps = 4 // crawling, chunking, embedding, extraction
-    let completedSteps = 0
-    if (job.crawling_status === 'completed') completedSteps++
-    if (job.chunking_status === 'completed') completedSteps++
-    if (job.embedding_status === 'completed') completedSteps++
-    if (job.extraction_status === 'completed') completedSteps++
+    // Get job statistics for additional metrics - use facts_extracted as proxy for total facts
+    const totalFacts = job.facts_extracted || 0
     
-    const completionPercentage = Math.round((completedSteps / totalSteps) * 100)
+    // Calculate processing speed (pages per minute)
+    const pagesScraped = job.pages_scraped || 0
+    const processingSpeed = elapsedTimeSeconds > 0 ? (pagesScraped / (elapsedTimeSeconds / 60)) : 0
 
-    // Memory usage estimate (MB)
-    const memoryUsage = Math.min(512, job.chunks_created * 0.1 + job.embeddings_generated * 0.05)
+    // Estimate API costs (rough calculation based on token usage)
+    const estimatedTokens = totalFacts * 150 // Rough estimate
+    const estimatedCost = estimatedTokens * 0.00002 // Rough GPT-4 pricing
+
+    // Calculate completion percentage based on job status
+    let completionPercentage = 0
+    if (job.status === 'completed') {
+      completionPercentage = 100
+    } else if (job.status === 'running') {
+      // Estimate based on facts found vs expected
+      completionPercentage = Math.min(90, totalFacts * 10)
+    } else if (job.status === 'failed') {
+      completionPercentage = 0
+    }
+
+    // Memory usage estimation (rough calculation)
+    const memoryUsage = Math.max(50, totalFacts * 0.5 + 30)
 
     const metrics = {
       processingSpeed: {
-        value: processingSpeed,
+        value: Math.round(processingSpeed * 10) / 10,
         unit: 'pages/min',
-        trend: processingSpeed > 2 ? 'up' : processingSpeed > 1 ? 'stable' : 'down'
+        trend: 'stable' as const
       },
       apiCost: {
-        value: estimatedApiCost,
+        value: estimatedCost,
         unit: 'USD',
-        trend: 'up'
+        trend: 'up' as const
       },
       tokenUsage: {
-        value: tokenUsage,
+        value: estimatedTokens,
         unit: 'tokens',
-        trend: 'up'
+        trend: 'up' as const
       },
       completionPercentage: {
         value: completionPercentage,
         unit: '%',
-        trend: job.status === 'running' ? 'up' : 'stable'
+        trend: job.status === 'running' ? 'up' as const : 'stable' as const
       },
       memoryUsage: {
         value: Math.round(memoryUsage),
         unit: 'MB',
-        trend: 'up'
+        trend: 'stable' as const
       },
       elapsedTime: {
-        value: elapsedSeconds,
+        value: elapsedTimeSeconds,
         unit: 'seconds',
-        trend: 'up'
-      },
-      // Progress metrics
-      pagesCrawled: job.pages_crawled,
-      chunksCreated: job.chunks_created,
-      embeddingsGenerated: job.embeddings_generated,
-      factsExtracted: job.facts_extracted,
-      // Status metrics
-      currentStep: getCurrentStep(job),
-      status: job.status
+        trend: job.status === 'running' ? 'up' as const : 'stable' as const
+      }
     }
 
     return NextResponse.json({
       success: true,
-      metrics
+      metrics,
+      timestamp: now.toISOString()
     })
+
   } catch (error) {
     console.error('Error fetching job metrics:', error)
     return NextResponse.json(
-      { success: false, message: 'Failed to fetch metrics' },
+      { error: 'Failed to fetch job metrics' },
       { status: 500 }
     )
   }
-}
-
-function getCurrentStep(job: any): string {
-  if (job.status === 'completed') return 'completed'
-  if (job.status === 'failed') return 'failed'
-  if (job.status === 'pending') return 'pending'
-  
-  // For running jobs, determine current step
-  if (job.extraction_status === 'running') return 'extraction'
-  if (job.embedding_status === 'running') return 'embedding'
-  if (job.chunking_status === 'running') return 'chunking'
-  if (job.crawling_status === 'running') return 'crawling'
-  
-  // Default to first step if running but no specific step is running
-  return 'crawling'
 }

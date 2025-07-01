@@ -21,6 +21,7 @@ import {
   SiteRepository,
   EnrichmentJobRecordRepository 
 } from '../types/data-model';
+import { JobRepository } from '../repositories/job-repository';
 
 export interface TierProcessor {
   tier: number;
@@ -54,6 +55,7 @@ export class EnrichmentChainingEngine {
   private orgRepository: OrganizationRepository;
   private siteRepository: SiteRepository;
   private jobRepository: EnrichmentJobRecordRepository;
+  private jobRepo: JobRepository; // For updating UI progress fields
 
   constructor(
     orgRepository: OrganizationRepository,
@@ -68,6 +70,7 @@ export class EnrichmentChainingEngine {
     this.orgRepository = orgRepository;
     this.siteRepository = siteRepository;
     this.jobRepository = jobRepository;
+    this.jobRepo = new JobRepository(); // Initialize for UI progress updates
     
     this.config = {
       confidence_threshold: 0.7,
@@ -150,6 +153,9 @@ export class EnrichmentChainingEngine {
         if (allFacts.length > 0) {
           currentConfidence = allFacts.reduce((sum, fact) => sum + fact.confidence_score, 0) / allFacts.length;
         }
+        
+        // Update UI progress fields based on tier results
+        await this.updateUIProgress(jobId, tierNumber, tierResult, allFacts.length);
         
         console.log(`Tier ${tierNumber} completed. Facts: ${tierResult.facts.length}, Avg Confidence: ${tierResult.average_confidence.toFixed(3)}, Overall: ${currentConfidence.toFixed(3)}`);
         
@@ -495,6 +501,61 @@ export class EnrichmentChainingEngine {
       confidenceScore,
       enrichmentJobId
     };
+  }
+
+  /**
+   * Update UI progress fields based on tier results
+   */
+  private async updateUIProgress(
+    jobId: string, 
+    tierNumber: number, 
+    tierResult: TierProcessingResult, 
+    totalFacts: number
+  ): Promise<void> {
+    try {
+      // Map tier processing to UI step statuses
+      const stepStatus = tierResult.status === 'completed' ? 'completed' : 
+                        tierResult.status === 'partial' ? 'completed' : 
+                        tierResult.status === 'failed' ? 'failed' : 'running';
+
+      // Update step statuses based on tier completion
+      if (tierNumber >= 1) {
+        await this.jobRepo.updateStepStatus(jobId, 'crawling_status', stepStatus);
+        await this.jobRepo.updateProgress(jobId, { 
+          pages_crawled: tierResult.pages_scraped 
+        });
+      }
+
+      if (tierNumber >= 1 && tierResult.pages_scraped > 0) {
+        // Estimate chunks created (roughly 4 chunks per page)
+        const estimatedChunks = tierResult.pages_scraped * 4;
+        await this.jobRepo.updateStepStatus(jobId, 'chunking_status', stepStatus);
+        await this.jobRepo.updateProgress(jobId, { 
+          chunks_created: estimatedChunks 
+        });
+      }
+
+      if (tierNumber >= 1 && tierResult.pages_scraped > 0) {
+        // Estimate embeddings (same as chunks)
+        const estimatedEmbeddings = tierResult.pages_scraped * 4;
+        await this.jobRepo.updateStepStatus(jobId, 'embedding_status', stepStatus);
+        await this.jobRepo.updateProgress(jobId, { 
+          embeddings_generated: estimatedEmbeddings 
+        });
+      }
+
+      // Always update fact extraction with actual facts
+      await this.jobRepo.updateStepStatus(jobId, 'extraction_status', stepStatus);
+      await this.jobRepo.updateProgress(jobId, { 
+        facts_extracted: totalFacts 
+      });
+
+      console.log(`Updated UI progress for job ${jobId}: tier ${tierNumber}, pages: ${tierResult.pages_scraped}, facts: ${totalFacts}`);
+
+    } catch (error) {
+      console.error(`Error updating UI progress for job ${jobId}:`, error);
+      // Don't throw - this is just for UI updates
+    }
   }
 
   /**
