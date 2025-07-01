@@ -77,11 +77,12 @@ export function SiteMap({ sites, onSiteClick, className = '' }: SiteMapProps) {
         
         mapInstanceRef.current = map;
 
-        // Add neutral greyscale tile layer
+        // Add greyscale tile layer with transparent water and grey land
         L.tileLayer('https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png', {
           attribution: '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a>, &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors',
           maxZoom: 20,
-          opacity: 0.8
+          opacity: 0.7,
+          className: 'map-tiles-custom'
         }).addTo(map);
 
         // Helper function to get site type icon
@@ -269,6 +270,10 @@ export function SiteMap({ sites, onSiteClick, className = '' }: SiteMapProps) {
         .custom-div-icon {
           background: transparent !important;
           border: none !important;
+        }
+        .map-tiles-custom {
+          filter: grayscale(100%) contrast(1.2);
+          mix-blend-mode: multiply;
         }
       `}</style>
       {isLoading && (
