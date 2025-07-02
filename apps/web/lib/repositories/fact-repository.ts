@@ -150,6 +150,40 @@ export class FactRepository implements IFactRepository {
   }
 
   /**
+   * Finds facts by domain
+   */
+  async findByDomain(domain: string): Promise<EnrichmentFact[]> {
+    const client = await this.pool.connect();
+    
+    try {
+      const query = `
+        SELECT 
+          f.id,
+          f.job_id,
+          f.fact_type,
+          f.fact_data,
+          f.confidence_score,
+          f.source_url,
+          f.source_text,
+          f.embedding_id,
+          f.created_at,
+          f.validated,
+          f.validation_notes,
+          f.tier_used
+        FROM enrichment_facts f
+        JOIN enrichment_jobs j ON f.job_id = j.id
+        WHERE j.domain = $1
+        ORDER BY f.confidence_score DESC, f.created_at DESC
+      `;
+      const result = await client.query(query, [domain]);
+      
+      return result.rows.map(row => this.mapRowToFact(row));
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
    * Finds facts above a confidence threshold
    */
   async findByConfidenceThreshold(threshold: number, limit: number = 100): Promise<EnrichmentFact[]> {

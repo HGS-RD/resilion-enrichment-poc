@@ -95,6 +95,9 @@ export default function ViewerPage() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   const handleSiteClick = (site: Site) => {
+    console.log('handleSiteClick called with site:', site.name);
+    console.log('Setting selectedSite to:', site);
+    console.log('Setting isDrawerOpen to: true');
     setSelectedSite(site);
     setIsDrawerOpen(true);
   };

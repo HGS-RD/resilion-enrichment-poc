@@ -11,6 +11,7 @@ import { PostgresSiteRepository } from '../repositories/site-repository';
 import { FactRepository } from '../repositories/fact-repository';
 import { EnrichmentViewerData, Site as ViewerSite, Person, Evidence } from '../types/viewer';
 import { Organization, Site as DatabaseSite } from '../types/data-model';
+import { GeocodingService } from './geocoding-service';
 
 export class ViewerDataService {
   private organizationRepo: PostgresOrganizationRepository;
@@ -29,23 +30,37 @@ export class ViewerDataService {
    */
   async getViewerDataByDomain(domain: string): Promise<EnrichmentViewerData | null> {
     try {
-      // Find organization by domain
-      const organization = await this.organizationRepo.findByDomain(domain);
-      if (!organization) {
-        return null;
+      // Get facts for the domain first
+      const facts = await this.factRepo.findByDomain(domain);
+      
+      if (facts.length === 0) {
+        return null; // No facts found for this domain
       }
 
-      // Get sites for the organization
+      // Try to find organization by domain
+      let organization = await this.organizationRepo.findByDomain(domain);
+      
+      // If no organization found, create a fallback from facts
+      if (!organization) {
+        organization = this.createFallbackOrganization(domain, facts);
+      }
+
+      // Get sites for the organization (if any exist in database)
       const sites = await this.siteRepo.findByOrganizationId(organization.organizationId);
 
-      // Get facts for additional context - for now, get all facts and filter by domain
-      // TODO: Add findByDomain method to FactRepository
-      const facts: any[] = [];
+      // Extract location sites from facts
+      const locationSites = this.extractSitesFromLocationFacts(facts, organization.organizationId);
+
+      // Combine database sites with location sites from facts
+      const allSites = [
+        ...sites.map(site => this.transformSite(site)),
+        ...locationSites
+      ];
 
       // Transform data to viewer format
       const viewerData: EnrichmentViewerData = {
         organization: this.transformOrganization(organization, facts),
-        sites: sites.map(site => this.transformSite(site)),
+        sites: allSites,
         people: this.extractPeopleFromFacts(facts, organization.organizationId)
       };
 
@@ -368,5 +383,138 @@ export class ViewerDataService {
     });
     
     return people;
+  }
+
+  /**
+   * Extract sites from location facts
+   */
+  private extractSitesFromLocationFacts(facts: any[], organizationId: string): ViewerSite[] {
+    const locationFacts = facts.filter(f => f.fact_type === 'location');
+    const sites: ViewerSite[] = [];
+    
+    locationFacts.forEach((fact, index) => {
+      const factData = fact.fact_data;
+      if (!factData) return;
+
+      // Extract location information
+      const city = factData.city || '';
+      const state = factData.state || '';
+      const country = factData.country || '';
+      const address = factData.address || '';
+      
+      // Create a unique site name from location data
+      let siteName = '';
+      if (city && country) {
+        siteName = `${city}, ${country}`;
+      } else if (city) {
+        siteName = city;
+      } else if (address) {
+        siteName = address;
+      } else {
+        siteName = `Location ${index + 1}`;
+      }
+
+      // Try to extract coordinates if available
+      let latitude: number | undefined;
+      let longitude: number | undefined;
+      
+      if (factData.coordinates) {
+        latitude = factData.coordinates.lat || factData.coordinates.latitude;
+        longitude = factData.coordinates.lng || factData.coordinates.longitude || factData.coordinates.lon;
+      }
+      
+      // If no coordinates found, try geocoding
+      if (!latitude || !longitude) {
+        const geocodedCoords = GeocodingService.getCoordinatesFromLocation(factData);
+        if (geocodedCoords) {
+          latitude = geocodedCoords.latitude;
+          longitude = geocodedCoords.longitude;
+        }
+      }
+
+      // Determine site type based on context
+      let siteType: ViewerSite['siteType'] = 'Manufacturing';
+      const sourceText = fact.source_text?.toLowerCase() || '';
+      if (sourceText.includes('headquarters') || sourceText.includes('hq')) {
+        siteType = 'Headquarters';
+      } else if (sourceText.includes('research') || sourceText.includes('r&d')) {
+        siteType = 'R&D';
+      } else if (sourceText.includes('distribution') || sourceText.includes('warehouse')) {
+        siteType = 'Distribution';
+      }
+
+      const site: ViewerSite = {
+        siteId: `fact-site-${fact.id}`,
+        organizationId: organizationId,
+        name: siteName,
+        addressStreet: address,
+        city: city,
+        stateProvince: state,
+        postalCode: factData.postalCode || factData.zipCode || '',
+        country: country,
+        latitude,
+        longitude,
+        siteType,
+        sitePurpose: factData.purpose || '',
+        operatingStatus: 'Active',
+        employeeCount: factData.employeeCount,
+        productionCapacity: factData.capacity,
+        parentCompany: '',
+        certifications: [],
+        products: [],
+        technologies: [],
+        capabilities: [],
+        contacts: [],
+        evidence: [{
+          evidenceId: `evidence-location-${fact.id}`,
+          snippet: fact.source_text || `Location information: ${siteName}`,
+          sourceURL: fact.source_url || '',
+          confidenceScore: fact.confidence_score || 0.8,
+          lastVerified: fact.created_at || new Date().toISOString(),
+          tier: fact.confidence_score && fact.confidence_score > 0.8 ? 'Tier 1' : 'Tier 2'
+        }]
+      };
+
+      sites.push(site);
+    });
+
+    return sites;
+  }
+
+  /**
+   * Create a fallback organization from facts when no organization record exists
+   */
+  private createFallbackOrganization(domain: string, facts: any[]): Organization {
+    // Extract company info from facts
+    const companyInfoFacts = facts.filter(f => f.fact_type === 'company_info');
+    
+    let companyName = domain.split('.')[0]; // Default to domain name
+    let industry = 'Unknown';
+    let headquarters = 'Unknown';
+    
+    if (companyInfoFacts.length > 0) {
+      const companyInfo = companyInfoFacts[0].fact_data;
+      if (companyInfo?.name) {
+        companyName = companyInfo.name;
+      }
+      if (companyInfo?.industry) {
+        industry = companyInfo.industry;
+      }
+      if (companyInfo?.headquarters) {
+        headquarters = companyInfo.headquarters;
+      }
+    }
+
+    // Create a fallback organization object
+    return {
+      organizationId: `fallback-${domain}`,
+      companyName: companyName,
+      website: `https://${domain}`,
+      headquartersAddress: headquarters,
+      industrySectors: [industry],
+      parentCompany: undefined,
+      subsidiaries: [],
+      lastVerifiedDate: new Date().toISOString()
+    };
   }
 }

@@ -191,6 +191,7 @@ export function SiteMap({ sites, onSiteClick, className = '' }: SiteMapProps) {
           
           // Add click handler
           marker.on('click', () => {
+            console.log('Pin clicked for site:', site.name);
             onSiteClick(site);
           });
         });

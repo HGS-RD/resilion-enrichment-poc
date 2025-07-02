@@ -2,11 +2,11 @@
 
 import { Site } from '../../lib/types/viewer';
 import { 
-  Drawer,
-  DrawerContent,
-  DrawerDescription,
-  DrawerHeader,
-  DrawerTitle,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
   Accordion,
   AccordionContent,
   AccordionItem,
@@ -86,22 +86,28 @@ function getSiteTypeIcon(siteType: Site['siteType']) {
 }
 
 export function SiteDetailCard({ site, isOpen, onOpenChange }: SiteDetailCardProps) {
-  if (!site) return null;
+  console.log('SiteDetailCard rendered with:', { site: site?.name, isOpen, hasOnOpenChange: !!onOpenChange });
+  
+  if (!site) {
+    console.log('SiteDetailCard: No site provided, returning null');
+    return null;
+  }
+
+  console.log('SiteDetailCard: Rendering drawer with site:', site.name, 'isOpen:', isOpen);
 
   return (
-    <Drawer open={isOpen} onOpenChange={onOpenChange}>
-      <DrawerContent className="max-h-[90vh]">
-        <div className="mx-auto w-full max-w-4xl">
-          <DrawerHeader className="text-left">
-            <DrawerTitle className="flex items-center gap-2 text-xl">
-              {getSiteTypeIcon(site.siteType)}
-              {site.name}
-            </DrawerTitle>
-            <DrawerDescription className="flex items-center gap-2 text-base">
-              <MapPin className="h-4 w-4" />
-              {formatAddress(site)}
-            </DrawerDescription>
-          </DrawerHeader>
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader className="text-left">
+          <DialogTitle className="flex items-center gap-2 text-xl">
+            {getSiteTypeIcon(site.siteType)}
+            {site.name}
+          </DialogTitle>
+          <DialogDescription className="flex items-center gap-2 text-base">
+            <MapPin className="h-4 w-4" />
+            {formatAddress(site)}
+          </DialogDescription>
+        </DialogHeader>
           
           <div className="p-6 space-y-6 overflow-y-auto max-h-[70vh]">
             {/* Site Overview */}
@@ -422,9 +428,8 @@ export function SiteDetailCard({ site, isOpen, onOpenChange }: SiteDetailCardPro
               )}
             </Accordion>
           </div>
-        </div>
-      </DrawerContent>
-    </Drawer>
+      </DialogContent>
+    </Dialog>
   );
 }
 
