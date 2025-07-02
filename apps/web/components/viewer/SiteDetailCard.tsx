@@ -4,7 +4,6 @@ import { Site } from '../../lib/types/viewer';
 import { 
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
   Accordion,
@@ -97,19 +96,19 @@ export function SiteDetailCard({ site, isOpen, onOpenChange }: SiteDetailCardPro
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader className="text-left">
-          <DialogTitle className="flex items-center gap-2 text-xl">
+      <DialogContent className="w-[600px] max-w-[90vw] max-h-[80vh] overflow-hidden p-0 gap-0">
+        <DialogHeader className="p-4 pb-2 border-b">
+          <DialogTitle className="flex items-center gap-2 text-lg">
             {getSiteTypeIcon(site.siteType)}
             {site.name}
           </DialogTitle>
-          <DialogDescription className="flex items-center gap-2 text-base">
-            <MapPin className="h-4 w-4" />
+          <p className="flex items-center gap-2 text-sm text-muted-foreground">
+            <MapPin className="h-3 w-3" />
             {formatAddress(site)}
-          </DialogDescription>
+          </p>
         </DialogHeader>
-          
-          <div className="p-6 space-y-6 overflow-y-auto max-h-[70vh]">
+        
+        <div className="p-4 space-y-4 overflow-y-auto max-h-[60vh]">
             {/* Site Overview */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <Card>
@@ -427,7 +426,7 @@ export function SiteDetailCard({ site, isOpen, onOpenChange }: SiteDetailCardPro
                 </AccordionItem>
               )}
             </Accordion>
-          </div>
+        </div>
       </DialogContent>
     </Dialog>
   );
